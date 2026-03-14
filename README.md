@@ -1,21 +1,21 @@
-# StructAlign
+# RLRefine
 
-**让大模型稳定输出结构化 JSON 的端到端框架**
+**用强化学习精炼 LLM 的思考过程与信息提取能力**
 
-> Stable Structured Output from LLMs via RLHF (SFT → DPO → GRPO)
+> Refine LLM's Reasoning & Extraction via RL (SFT → DPO → GRPO)
 
 ---
 
 ## 这个项目解决什么问题？
 
-在实际生产中，我们经常需要大模型按照固定的 JSON Schema 输出结构化数据（如关键词提取、情感分析、实体识别等）。但原始模型的 JSON 输出极不稳定：
+在用 LLM 做关键词提取等信息抽取任务时，原始模型存在以下核心问题：
 
-- 随机丢失字段、多出字段
-- JSON 格式错误（缺少括号、逗号、引号等）
-- 模型"自由发挥"，输出与 Schema 完全不符的内容
-- 陷入重复 token 的退化循环（输出大量空白/制表符直到 max_tokens）
+- **思考过程粗糙**：模型缺乏系统性的分析步骤，经常跳过关键推理环节，导致提取结果质量不稳定
+- **关键词质量差**：遗漏重要关键词、提取的词粒度不一致、无法正确处理否定词场景
+- **幻觉严重**：输出的关键词不在原文中，模型自行编造或归纳总结
+- **输出格式不可控**：JSON 格式错误、字段缺失、陷入重复 token 循环等
 
-**StructAlign 提供了一套经过实战验证的工程化方案**：通过 `SFT → DPO → GRPO` 三阶段 RL 训练流水线逐步提升模型能力，配合鲁棒的多级容错推理引擎，显著降低 JSON 格式错误率。
+**RLRefine 的核心思路**：通过构造包含高质量思考过程的训练数据，使用 `SFT → DPO → GRPO` 三阶段 RL 训练流水线，让模型学会更规范的推理方式，从而**提升提取结果的准确率和一致性**。JSON 输出的稳定性则是训练过程中附带获得的工程收益。
 
 ---
 
@@ -23,12 +23,12 @@
 
 | 特性 | 说明 |
 |------|------|
+| **RL 训练全流程** | 内置 SFT → DPO → GRPO 训练脚本，逐阶段精炼模型的思考与提取能力（基于 ms-swift） |
+| **Schema 驱动的 Reward** | GRPO 奖励函数以**提取准确率（F1）为主导**（权重 50%），同时兼顾思考质量、格式正确性和幻觉惩罚 |
 | **Schema 驱动** | 用 Python 代码定义 JSON Schema，框架自动生成 Prompt、验证响应、构建 Reward |
 | **动态 Prompt 生成** | 根据 Schema 和任务规则自动生成 System/User Prompt，支持长文本/短文本自动切换 |
-| **多级容错推理** | LLM 调用 → 带惩罚参数重试 → Jieba 规则兜底 → 硬截断兜底，确保永远有返回值 |
+| **多级容错推理** | LLM 调用 → 带惩罚参数重试 → Jieba 规则兜底 → 硬截断兜底，确保生产环境永远有返回值 |
 | **完整后处理流水线** | 去重、Top-N 截取、停用词过滤、时间/日期词过滤、原文对齐验证、智能回填 |
-| **RL 训练全流程** | 内置 SFT → DPO → GRPO 训练脚本，一键启动（基于 ms-swift） |
-| **Schema 驱动的 Reward** | GRPO 的奖励函数基于 Schema 自动校验 JSON 格式、字段完整性和原文对齐 |
 | **开箱即用的示例** | 附带关键词提取完整示例，可直接运行 |
 
 ---
@@ -36,46 +36,35 @@
 ## 架构概览
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    StructAlign 框架                       │
-├─────────────────────────────────────────────────────────┤
-│                                                          │
-│  ┌──────────┐   ┌───────────┐   ┌──────────────────┐    │
-│  │  Schema   │──▶│  Prompt   │──▶│   LLM (vLLM)     │    │
-│  │ 定义任务  │   │  Builder  │   │   推理引擎        │    │
-│  └──────────┘   └───────────┘   └────────┬─────────┘    │
-│       │                                   │              │
-│       │              ┌────────────────────▼──────┐       │
-│       │              │     _parse_response()      │       │
-│       │              │  基于 Schema 验证 JSON     │       │
-│       │              └────────────────────┬──────┘       │
-│       │                                   │              │
-│       │         成功 ┌────────────────────▼──────┐       │
-│       │         ┌───│    post_process()           │       │
-│       │         │   │  去重/过滤/Top-N/原文验证   │       │
-│       │         │   └───────────────────────────┘       │
-│       │         │                                        │
-│       │         │ 失败 ┌──────────────────────────┐      │
-│       │         └────▶│  带惩罚参数重试 (2轮后)   │      │
-│       │               └────────────┬─────────────┘      │
-│       │                            │ 仍然失败            │
-│       │               ┌────────────▼─────────────┐      │
-│       │               │  Jieba 兜底提取           │      │
-│       │               │  (TF-IDF / TextRank)     │      │
-│       │               └──────────────────────────┘      │
-│       │                                                  │
-│  ┌────▼─────────────────────────────────────────────┐   │
-│  │            RL 训练流水线 (可选)                    │   │
-│  │  ┌─────┐   ┌─────┐   ┌──────┐                   │   │
-│  │  │ SFT │──▶│ DPO │──▶│ GRPO │                   │   │
-│  │  └─────┘   └─────┘   └──┬───┘                   │   │
-│  │                          │                        │   │
-│  │              ┌───────────▼────────────┐           │   │
-│  │              │  Schema-Based Reward   │           │   │
-│  │              │  (reward_builder.py)   │           │   │
-│  │              └────────────────────────┘           │   │
-│  └──────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                      RLRefine 框架                            │
+├────────────────────────────┬─────────────────────────────────┤
+│                            │                                  │
+│   RL 训练流水线 (核心)       │   推理引擎 (工程配套)             │
+│                            │                                  │
+│  ┌─────┐  ┌─────┐  ┌─────┐│  ┌──────────┐  ┌────────────┐  │
+│  │ SFT │─▶│ DPO │─▶│GRPO ││  │  Schema   │─▶│  Prompt    │  │
+│  └─────┘  └─────┘  └──┬──┘│  │  定义任务  │  │  Builder   │  │
+│                        │   │  └──────────┘  └──────┬─────┘  │
+│  ┌─────────────────────▼─┐ │                       │         │
+│  │  Schema-Based Reward  │ │  ┌────────────────────▼──────┐  │
+│  │                       │ │  │     LLM (vLLM) 推理       │  │
+│  │  准确率 F1    (50%)   │ │  └────────────────────┬──────┘  │
+│  │  Schema验证   (20%)   │ │                       │         │
+│  │  格式检查     (20%)   │ │         ┌─────────────▼───────┐ │
+│  │  思考质量     (10%)   │ │         │  _parse_response()  │ │
+│  │  幻觉惩罚  (-0.1/词)  │ │         │  Schema 验证 JSON   │ │
+│  └───────────────────────┘ │         └─────────┬───────────┘ │
+│                            │                   │              │
+│                            │      ┌────────────▼──────────┐  │
+│                            │      │   post_process()       │  │
+│                            │      │   去重/过滤/Top-N/验证  │  │
+│                            │      └────────────┬──────────┘  │
+│                            │                   │ 失败时       │
+│                            │      ┌────────────▼──────────┐  │
+│                            │      │   Jieba 兜底提取       │  │
+│                            │      └───────────────────────┘  │
+└────────────────────────────┴─────────────────────────────────┘
 ```
 
 ---
@@ -83,26 +72,26 @@
 ## 目录结构
 
 ```
-StructAlign/
+RLRefine/
+├── rl/                            # 强化学习训练模块（核心）
+│   ├── reward_builder.py          #   Schema 驱动的奖励函数（用于 GRPO）
+│   ├── convert_sft_to_grpo.py     #   SFT 数据格式转 GRPO 格式的工具
+│   ├── sft_finetune.sh            #   SFT 训练脚本（基于 ms-swift）
+│   ├── dpo_finetune.sh            #   DPO 训练脚本（基于 ms-swift）
+│   └── grpo_finetune.sh           #   GRPO 训练脚本（基于 ms-swift + vLLM）
+│
 ├── core/                          # 核心模块
 │   ├── schema.py                  #   Schema 定义与验证（TaskSchema, FieldDefinition, ExtractionTask）
 │   ├── config.py                  #   配置系统（支持 .env / YAML / 字典）
 │   ├── processor.py               #   核心处理器（推理 + 重试 + 兜底 + 后处理）
 │   ├── preprocess.py              #   文本预处理（去噪、去 Emoji、去 URL 等）
 │   ├── post_process.py            #   关键词后处理（去重、过滤、Top-N、原文验证）
-│   ├── fallback.py                #   Jieba 兜底提取（TF-IDF / TextRank / 简单分词）
-│   └── stopwords.txt              #   中文停用词表
+│   └── fallback.py                #   Jieba 兜底提取（TF-IDF / TextRank / 简单分词）
 │
 ├── prompts/                       # Prompt 模块
 │   ├── prompt_builder.py          #   动态 Prompt 生成器（根据 Schema 自动构建）
 │   ├── prompt_template_3.py       #   关键词提取 Prompt 模板（长文本版）
 │   └── prompt_template_4_short.py #   关键词提取 Prompt 模板（短文本版）
-│
-├── rl/                            # 强化学习训练模块
-│   ├── reward_builder.py          #   Schema 驱动的奖励函数（用于 GRPO）
-│   ├── convert_sft_to_grpo.py     #   SFT 数据格式转 GRPO 格式的工具
-│   ├── dpo_finetune.sh            #   DPO 训练脚本（基于 ms-swift）
-│   └── grpo_finetune.sh           #   GRPO 训练脚本（基于 ms-swift + vLLM）
 │
 ├── scripts/                       # 工具脚本
 │   └── run_vllm.sh                #   一键启动 vLLM 推理服务
@@ -134,8 +123,8 @@ StructAlign/
 
 ```bash
 # 1. 克隆项目
-git clone https://github.com/your-username/StructAlign.git
-cd StructAlign
+git clone https://github.com/your-username/RLRefine.git
+cd RLRefine
 
 # 2. 安装依赖
 pip install -r requirements.txt
@@ -161,11 +150,142 @@ vllm>=0.6.0          # 推理后端（仅服务端需要）
 
 ---
 
+## RL 训练流程
+
+这是本项目的核心贡献。通过三阶段渐进式训练，逐步精炼模型的思考过程和提取能力。
+
+### 训练流程概览
+
+```
+基座模型 (Qwen2.5-7B-Instruct)
+    │
+    ▼
+ SFT 训练 ──────── 注入高质量思考过程的示范数据，让模型学会"怎么想"
+    │
+    ▼
+ DPO 训练 ──────── 通过好/差对比，让模型学会区分"好的思考"和"差的思考"
+    │
+    ▼
+ GRPO 训练 ─────── 以提取准确率为主导的 Reward 直接优化模型行为
+    │
+    ▼
+ 精炼后的模型 ──── 思考更系统、提取更准确、输出更稳定
+```
+
+### 为什么要用 RL？
+
+原始 LLM 在关键词提取时的典型问题：
+
+1. **思考不充分**：直接跳到结论，缺乏对文本的逐步分析
+2. **遗漏关键词**：未能识别否定词场景（如"没有声音"中的"声音"）
+3. **粒度不一致**：有时输出"屏幕很大"，有时输出"屏幕"，缺乏统一标准
+4. **幻觉**：输出原文中不存在的词
+
+通过 RL 训练，模型学会了：
+- 系统性地拆解文本，先识别主体词再识别描述词
+- 严格的原文对齐意识，不编造不存在的词
+- 一致的关键词粒度（原子级关键词，≤4 个汉字）
+- 规范的输出格式（JSON 稳定性作为附带收益）
+
+### 步骤 1：准备 SFT 数据
+
+SFT 数据是整个训练的基石。你需要构造包含**高质量思考过程**的示范数据，格式为 JSONL：
+
+```json
+{
+  "messages": [
+    {"role": "system", "content": "你是关键词提取专家..."},
+    {"role": "user", "content": "请分析以下评论：这款手机屏幕很大..."},
+    {"role": "assistant", "content": "<think>分析评论内容：1. '屏幕很大'→主体词'屏幕'，描述词'大'；2. '电池耐用'→主体词'电池'...</think>\n{\"keywords\": [[\"识别主体词'屏幕'\", \"屏幕\", 0.95], [\"识别描述词'大'\", \"大\", 0.90]]}"}
+  ]
+}
+```
+
+> 关键：assistant 的回复中需要包含结构化的思考过程（`<think>...</think>` 标签），这是模型需要学习的核心内容。
+
+### 步骤 2：SFT 训练
+
+使用 ms-swift 进行有监督微调，让模型初步学会思考和提取的模式：
+
+```bash
+# 修改 rl/sft_finetune.sh 中的路径，然后运行
+bash rl/sft_finetune.sh
+```
+
+`sft_finetune.sh` 中的关键参数：
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `MODEL_PATH` | Qwen2.5-7B-Instruct | 基座模型路径 |
+| `DATASET_PATH` | `sft_data.jsonl` | SFT 训练数据路径 |
+| `LORA_RANK` | `16` | LoRA 秩 |
+| `LORA_ALPHA` | `64` | LoRA Alpha |
+| `LEARNING_RATE` | `1e-5` | 学习率 |
+| `MAX_LENGTH` | `8192` | 最大序列长度 |
+
+### 步骤 3：DPO 训练
+
+DPO 需要偏好数据对（chosen / rejected）。可以用更强的模型（如 Qwen-Max）自动生成。
+
+```bash
+# 修改 rl/dpo_finetune.sh 中的路径，然后运行
+bash rl/dpo_finetune.sh
+```
+
+`dpo_finetune.sh` 中的关键参数：
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `MODEL_PATH` | `./output/sft_merged_model` | SFT 合并后的模型路径 |
+| `DATASET_PATH` | `./data/dpo_dataset.jsonl` | DPO 训练数据路径 |
+| `BETA` | `0.2` | KL 散度惩罚系数（控制偏离程度） |
+| `LEARNING_RATE` | `5e-7` | 学习率（DPO 需要很小的学习率） |
+| `LORA_RANK` | `8` | LoRA 秩 |
+
+### 步骤 4：GRPO 训练
+
+GRPO 是最关键的一步。它通过 **采样多组输出 → 计算奖励 → 策略优化** 的方式，直接以提取准确率为目标优化模型。
+
+```bash
+# 1. 将 SFT 数据转为 GRPO 格式（移除 assistant 回复，只保留 prompt）
+python rl/convert_sft_to_grpo.py
+
+# 2. 修改 rl/grpo_finetune.sh 中的路径，然后运行
+bash rl/grpo_finetune.sh
+```
+
+`grpo_finetune.sh` 中的关键参数：
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `MODEL_PATH` | `./output/dpo/checkpoint-xxx-merged` | DPO 合并后的模型路径 |
+| `BETA` | `0.01` | KL 惩罚系数（GRPO 需要更小的值） |
+| `NUM_GENERATIONS` | `8` | 每个 prompt 采样的输出数量 |
+| `TEMPERATURE` | `0.9` | 采样温度（需要足够高以产生多样性） |
+| `REWARD_FUNCS` | `schema_based_reward` | 奖励函数名称 |
+| `EXTERNAL_PLUGINS` | `reward_builder.py` | 奖励函数文件 |
+
+### Reward Function（奖励函数）
+
+`rl/reward_builder.py` 中的 `SchemaBasedReward` 对模型输出进行多维评估，**以提取准确率为绝对主导**：
+
+| 评估维度 | 权重 | 说明 |
+|----------|------|------|
+| **准确率** | **0.5** | **与参考答案的 F1 Score（核心指标）** |
+| **Schema 验证** | 0.2 | 必需字段是否存在、关键词项格式是否正确 |
+| **格式检查** | 0.2 | JSON 是否合法、标签是否完整 |
+| **思考质量** | 0.1 | 思考过程长度是否合理、是否包含分析性词汇 |
+| **幻觉惩罚** | -0.1/词 | 输出的关键词不在原文中则扣分（最多扣 0.3） |
+
+> 设计理念：准确率占 50%，因为**提取质量才是最终目标**。格式和思考过程的约束是为准确率服务的手段，而非目的本身。
+
+---
+
 ## 快速开始
 
 ### 第一步：启动 vLLM 推理服务
 
-StructAlign 使用 vLLM 作为推理后端（通过 OpenAI 兼容 API）。
+RLRefine 使用 vLLM 作为推理后端（通过 OpenAI 兼容 API）。
 
 ```bash
 # 方式一：直接启动
@@ -190,7 +310,7 @@ MODEL_NAME=Qwen/Qwen2.5-7B-Instruct
 ### 第三步：运行示例
 
 ```bash
-cd StructAlign
+cd RLRefine
 python examples/keyword_extraction/run.py
 ```
 
@@ -310,14 +430,14 @@ def my_prompt_generator(text, task):
 builder = PromptBuilder(custom_prompt_generator=my_prompt_generator)
 ```
 
-### 4. StructAlignProcessor — 核心处理器
+### 4. RLRefineProcessor — 核心处理器
 
 将上述组件组合在一起，执行完整的推理流程：
 
 ```python
-from core.processor import StructAlignProcessor
+from core.processor import RLRefineProcessor
 
-processor = StructAlignProcessor(
+processor = RLRefineProcessor(
     config=config,
     task=task,
     prompt_builder=builder
@@ -365,7 +485,7 @@ results = processor.process_batch(input_data)
 
 ## 推理引擎的容错机制
 
-这是本框架的核心工程价值。在生产环境中，LLM 推理不可能 100% 成功，必须有完善的容错机制。
+在生产环境中，LLM 推理不可能 100% 成功，必须有完善的容错机制。这是本框架的工程配套能力。
 
 ### 第一层：带惩罚参数重试
 
@@ -395,110 +515,6 @@ while retry_count <= max_retries and parsed_data is None:
 1. 使用正则 `re.search(r'\{.*\}', response)` 从任意文本中提取 JSON 片段
 2. 如果启用了 Thinking 模式，先剥离 `<tag>...</tag>` 标签
 3. 基于 Schema 的必需字段验证，而非硬编码检查固定字段名
-
----
-
-## RL 训练流程（可选）
-
-如果你需要进一步提升模型输出 JSON 的稳定性，可以通过 RL 训练来微调模型。
-
-### 训练流程概览
-
-```
-基座模型 (Qwen2.5-7B-Instruct)
-    │
-    ▼
- SFT 训练 ──────── 注入"什么是好的 JSON 输出"的知识
-    │
-    ▼
- DPO 训练 ──────── 学习"好的输出 vs 差的输出"的偏好
-    │
-    ▼
- GRPO 训练 ─────── 通过 Reward Function 直接优化 JSON 格式正确性
-    │
-    ▼
- 微调后的模型 ──── JSON 输出稳定性大幅提升
-```
-
-### 步骤 1：准备 SFT 数据
-
-SFT 数据格式为 JSONL，每行是一个 `messages` 对话：
-
-```json
-{
-  "messages": [
-    {"role": "system", "content": "你是关键词提取专家..."},
-    {"role": "user", "content": "请分析以下评论：这款手机屏幕很大..."},
-    {"role": "assistant", "content": "{\"keywords\": [[\"主体词\", \"屏幕\", 0.95], [\"描述词\", \"大\", 0.90]]}"}
-  ]
-}
-```
-
-### 步骤 2：SFT 训练
-
-使用 ms-swift 进行有监督微调：
-
-```bash
-swift sft \
-    --model Qwen/Qwen2.5-7B-Instruct \
-    --dataset your_sft_data.jsonl \
-    --train_type lora \
-    --output_dir ./output/sft
-```
-
-### 步骤 3：DPO 训练
-
-DPO 需要偏好数据对（chosen / rejected）。可以用更强的模型（如 Qwen-Max）自动生成。
-
-```bash
-# 修改 rl/dpo_finetune.sh 中的路径，然后运行
-bash rl/dpo_finetune.sh
-```
-
-`dpo_finetune.sh` 中的关键参数：
-
-| 参数 | 默认值 | 说明 |
-|------|--------|------|
-| `MODEL_PATH` | `./output/sft_merged_model` | SFT 合并后的模型路径 |
-| `DATASET_PATH` | `./data/dpo_dataset.jsonl` | DPO 训练数据路径 |
-| `BETA` | `0.2` | KL 散度惩罚系数（控制偏离程度） |
-| `LEARNING_RATE` | `5e-7` | 学习率（DPO 需要很小的学习率） |
-| `LORA_RANK` | `8` | LoRA 秩 |
-
-### 步骤 4：GRPO 训练
-
-GRPO 是最关键的一步。它通过 **采样多组输出 → 计算奖励 → 策略优化** 的方式，让模型直接学会"什么是好的 JSON"。
-
-```bash
-# 1. 将 SFT 数据转为 GRPO 格式（移除 assistant 回复，只保留 prompt）
-python rl/convert_sft_to_grpo.py
-
-# 2. 修改 rl/grpo_finetune.sh 中的路径，然后运行
-bash rl/grpo_finetune.sh
-```
-
-`grpo_finetune.sh` 中的关键参数：
-
-| 参数 | 默认值 | 说明 |
-|------|--------|------|
-| `MODEL_PATH` | `./output/dpo/checkpoint-xxx-merged` | DPO 合并后的模型路径 |
-| `BETA` | `0.01` | KL 惩罚系数（GRPO 需要更小的值） |
-| `NUM_GENERATIONS` | `8` | 每个 prompt 采样的输出数量 |
-| `TEMPERATURE` | `0.9` | 采样温度（需要足够高以产生多样性） |
-| `REWARD_FUNCS` | `schema_based_reward` | 奖励函数名称 |
-| `EXTERNAL_PLUGINS` | `reward_builder.py` | 奖励函数文件 |
-
-### Reward Function（奖励函数）
-
-`rl/reward_builder.py` 中的 `SchemaBasedReward` 对模型输出进行多维评估：
-
-| 评估维度 | 权重 | 说明 |
-|----------|------|------|
-| **格式检查** | 0.2 | JSON 是否合法、标签是否完整 |
-| **思考质量** | 0.1 | 思考过程长度是否合理、是否包含分析性词汇 |
-| **Schema 验证** | 0.2 | 必需字段是否存在、类型是否正确 |
-| **准确率** | 0.5 | 与参考答案的 F1 Score |
-| **幻觉惩罚** | -0.1/词 | 输出的关键词不在原文中则扣分（最多扣 0.3） |
 
 ---
 
@@ -595,7 +611,7 @@ sys.path.insert(0, ROOT_DIR)
 
 from schema import create_sentiment_task
 from config import SentimentConfig
-from core.processor import StructAlignProcessor
+from core.processor import RLRefineProcessor
 from prompts.prompt_builder import PromptBuilder
 
 def main():
@@ -603,7 +619,7 @@ def main():
     config = SentimentConfig()
     builder = PromptBuilder.from_task(task)
 
-    processor = StructAlignProcessor(config=config, task=task, prompt_builder=builder)
+    processor = RLRefineProcessor(config=config, task=task, prompt_builder=builder)
 
     texts = [
         "这款手机屏幕很大，但是拍照效果一般",
@@ -666,7 +682,7 @@ if __name__ == "__main__":
 
 ### Q: 可以不使用 vLLM 吗？
 
-可以。StructAlign 使用 OpenAI 兼容 API 进行推理，任何兼容 OpenAI API 的服务都可以作为后端，包括：
+可以。RLRefine 使用 OpenAI 兼容 API 进行推理，任何兼容 OpenAI API 的服务都可以作为后端，包括：
 - OpenAI API 本身
 - Azure OpenAI
 - Ollama（启动时加 `--api` 参数）
@@ -681,6 +697,10 @@ config.enable_post_process = False
 ### Q: 如何只使用推理功能，不做 RL 训练？
 
 完全可以。`rl/` 目录下的训练脚本是可选的。你只需要 `core/`、`prompts/`、`examples/` 即可完成推理任务。安装依赖时也可以跳过 `ms-swift` 和 `vllm`。
+
+### Q: 不做 RL 训练和做了 RL 训练的区别？
+
+不做 RL 训练时，框架使用原始基座模型（如 Qwen2.5-7B-Instruct）进行推理，依赖 Prompt 工程和后处理来保证质量。做了 RL 训练后，模型本身具备了更好的思考和提取能力，输出质量显著提升，对后处理的依赖也大幅降低。
 
 ---
 

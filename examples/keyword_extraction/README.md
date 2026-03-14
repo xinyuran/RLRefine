@@ -1,6 +1,6 @@
 # 关键词提取示例
 
-本示例展示如何使用 StructAlign 框架进行关键词提取。
+本示例展示如何使用 RLRefine 框架进行关键词提取。
 
 ## 运行方法
 
@@ -13,7 +13,7 @@ vllm serve Qwen/Qwen2.5-7B-Instruct --port 8000
 ### 2. 运行示例
 
 ```bash
-cd StructAlign
+cd RLRefine
 python examples/keyword_extraction/run.py
 ```
 

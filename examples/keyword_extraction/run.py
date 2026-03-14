@@ -1,6 +1,6 @@
 """
 示例运行脚本 - 关键词提取
-运行方式: cd StructAlign && python examples/keyword_extraction/run.py
+运行方式: cd RLRefine && python examples/keyword_extraction/run.py
 """
 
 import json
@@ -23,7 +23,7 @@ else:
 
 from schema import create_keyword_task
 from config import KeywordExtractionConfig
-from core.processor import StructAlignProcessor
+from core.processor import RLRefineProcessor
 from prompts.prompt_builder import PromptBuilder
 
 import logging
@@ -38,7 +38,7 @@ def main():
     print(f"模型名称: {config.model_name}")
 
     prompt_builder = PromptBuilder.create_keyword_extraction_builder()
-    processor = StructAlignProcessor(
+    processor = RLRefineProcessor(
         config=config,
         task=task,
         prompt_builder=prompt_builder

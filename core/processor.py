@@ -1,5 +1,5 @@
 """
-核心处理逻辑：通用结构化数据提取器
+核心处理逻辑：通用信息提取处理器
 """
 import json
 import logging
@@ -17,7 +17,7 @@ from .post_process import post_process_keywords, extract_keywords_from_json, nor
 from .fallback import jieba_fallback_extract
 
 
-class StructAlignProcessor:
+class RLRefineProcessor:
     """通用结构化数据处理器"""
 
     def __init__(
@@ -34,7 +34,7 @@ class StructAlignProcessor:
             base_url=self.config.vllm_base_url,
             api_key=self.config.vllm_api_key
         )
-        logging.info(f"StructAlignProcessor 初始化完成，vLLM服务: {self.config.vllm_base_url}")
+        logging.info(f"RLRefineProcessor 初始化完成，vLLM服务: {self.config.vllm_base_url}")
 
     def _preprocess_text(self, text: str) -> str:
         """文本预处理"""

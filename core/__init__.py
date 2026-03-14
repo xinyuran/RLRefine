@@ -1,6 +1,6 @@
 from .schema import TaskSchema, FieldDefinition, FieldType, ExtractionTask
 from .config import Config
-from .processor import StructAlignProcessor
+from .processor import RLRefineProcessor
 
 __all__ = [
     'TaskSchema',
@@ -8,5 +8,5 @@ __all__ = [
     'FieldType',
     'ExtractionTask',
     'Config',
-    'StructAlignProcessor'
+    'RLRefineProcessor'
 ]
