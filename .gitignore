@@ -1,0 +1,109 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+*.so
+
+# 忽略 ignore_files 文件夹下的所有文件和子文件夹
+ignore_files/
+
+*.log
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg
+*.egg-info/
+.installed.cfg
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+.pytest_cache/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+
+# Translations
+*.mo
+*.pot
+
+# Environments
+.env
+.env.local
+.env.*.local
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*.swn
+*~
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# ruff
+ruff.toml
+
+# Lock files
+pdm.lock
+uv.lock
+poetry.lock
+Pipfile.lock
+
+# Logs
+logs/*.log
+!logs/.gitkeep
+
+# Project specific
+.pyf
+
+# Markdown files - ignore all except README files
+*.md
+!README.md
+!README_EN.md
+!README_CN.md
+!CONFIGURATION.md
+
+# Allow specific config files
+!config/prompts/private_*.txt
+!CONFIG/prompts/system_prompt.example.txt
+!config/prompts/user_prompt.txt
