@@ -100,7 +100,7 @@ logs/*.log
 *.md
 !README.md
 !README_EN.md
-!README_CN.md
+!README_EN.md
 !CONFIGURATION.md
 
 # Allow specific config files
