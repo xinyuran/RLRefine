@@ -1,6 +1,6 @@
 """
-Schema 定义与验证模块
-支持用户自定义 JSON Schema，用于结构化数据抽取任务
+Schema definition and validation module
+Supports user-defined JSON Schema for structured data extraction tasks
 """
 from dataclasses import dataclass, field
 from enum import Enum
@@ -9,7 +9,7 @@ import json
 
 
 class FieldType(Enum):
-    """字段类型枚举"""
+    """Field type enumeration"""
     STRING = "string"
     INTEGER = "integer"
     FLOAT = "float"
@@ -21,7 +21,7 @@ class FieldType(Enum):
 
 @dataclass
 class FieldDefinition:
-    """字段定义"""
+    """Field definition"""
     name: str
     type: FieldType
     description: str = ""
@@ -39,7 +39,7 @@ class FieldDefinition:
     validation_rules: List[Dict[str, Any]] = field(default_factory=list)
 
     def to_json_schema(self) -> Dict[str, Any]:
-        """转换为标准 JSON Schema 格式"""
+        """Convert to standard JSON Schema format"""
         schema = {
             "type": self.type.value,
             "description": self.description
@@ -87,98 +87,98 @@ class FieldDefinition:
         return schema
 
     def validate(self, value: Any) -> tuple[bool, Optional[str]]:
-        """验证值是否符合字段定义"""
+        """Validate value against field definition"""
         if value is None:
             if self.required:
-                return False, f"字段 '{self.name}' 是必需的"
+                return False, f"Field '{self.name}' is required"
             return True, None
 
         if self.type == FieldType.STRING:
             if not isinstance(value, str):
-                return False, f"字段 '{self.name}' 应为字符串类型"
+                return False, f"Field '{self.name}' should be string type"
             if self.min_length and len(value) < self.min_length:
-                return False, f"字段 '{self.name}' 长度不能小于 {self.min_length}"
+                return False, f"Field '{self.name}' length must not be less than {self.min_length}"
             if self.max_length and len(value) > self.max_length:
-                return False, f"字段 '{self.name}' 长度不能超过 {self.max_length}"
+                return False, f"Field '{self.name}' length must not exceed {self.max_length}"
             if self.enum_values and value not in self.enum_values:
-                return False, f"字段 '{self.name}' 的值必须是 {self.enum_values} 之一"
+                return False, f"Field '{self.name}' value must be one of {self.enum_values}"
 
         elif self.type == FieldType.INTEGER:
             if not isinstance(value, int):
-                return False, f"字段 '{self.name}' 应为整数类型"
+                return False, f"Field '{self.name}' should be integer type"
             if self.min_value is not None and value < self.min_value:
-                return False, f"字段 '{self.name}' 不能小于 {self.min_value}"
+                return False, f"Field '{self.name}' must not be less than {self.min_value}"
             if self.max_value is not None and value > self.max_value:
-                return False, f"字段 '{self.name}' 不能大于 {self.max_value}"
+                return False, f"Field '{self.name}' must not be greater than {self.max_value}"
 
         elif self.type == FieldType.FLOAT:
             if not isinstance(value, (int, float)):
-                return False, f"字段 '{self.name}' 应为数值类型"
+                return False, f"Field '{self.name}' should be numeric type"
             if self.min_value is not None and value < self.min_value:
-                return False, f"字段 '{self.name}' 不能小于 {self.min_value}"
+                return False, f"Field '{self.name}' must not be less than {self.min_value}"
             if self.max_value is not None and value > self.max_value:
-                return False, f"字段 '{self.name}' 不能大于 {self.max_value}"
+                return False, f"Field '{self.name}' must not be greater than {self.max_value}"
 
         elif self.type == FieldType.BOOLEAN:
             if not isinstance(value, bool):
-                return False, f"字段 '{self.name}' 应为布尔类型"
+                return False, f"Field '{self.name}' should be boolean type"
 
         elif self.type == FieldType.ARRAY:
             if not isinstance(value, list):
-                return False, f"字段 '{self.name}' 应为数组类型"
+                return False, f"Field '{self.name}' should be array type"
             if self.min_length and len(value) < self.min_length:
-                return False, f"字段 '{self.name}' 数组长度不能小于 {self.min_length}"
+                return False, f"Field '{self.name}' array length must not be less than {self.min_length}"
             if self.max_length and len(value) > self.max_length:
-                return False, f"字段 '{self.name}' 数组长度不能超过 {self.max_length}"
+                return False, f"Field '{self.name}' array length must not exceed {self.max_length}"
             if self.array_item_type:
                 for i, item in enumerate(value):
                     if self.array_item_type == FieldType.STRING and not isinstance(item, str):
-                        return False, f"字段 '{self.name}[{i}]' 应为字符串类型"
+                        return False, f"Field '{self.name}[{i}]' should be string type"
                     elif self.array_item_type == FieldType.INTEGER and not isinstance(item, int):
-                        return False, f"字段 '{self.name}[{i}]' 应为整数类型"
+                        return False, f"Field '{self.name}[{i}]' should be integer type"
                     elif self.array_item_type == FieldType.FLOAT and not isinstance(item, (int, float)):
-                        return False, f"字段 '{self.name}[{i}]' 应为数值类型"
+                        return False, f"Field '{self.name}[{i}]' should be numeric type"
 
         elif self.type == FieldType.ARRAY_OF_OBJECTS:
             if not isinstance(value, list):
-                return False, f"字段 '{self.name}' 应为数组类型"
+                return False, f"Field '{self.name}' should be array type"
             if self.array_item_schema:
                 for i, item in enumerate(value):
                     if not isinstance(item, dict):
-                        return False, f"字段 '{self.name}[{i}]' 应为对象类型"
+                        return False, f"Field '{self.name}[{i}]' should be object type"
                     is_valid, err = self.array_item_schema.validate(item)
                     if not is_valid:
-                        return False, f"字段 '{self.name}[{i}]': {err}"
+                        return False, f"Field '{self.name}[{i}]': {err}"
 
         elif self.type == FieldType.OBJECT:
             if not isinstance(value, dict):
-                return False, f"字段 '{self.name}' 应为对象类型"
+                return False, f"Field '{self.name}' should be object type"
 
         return True, None
 
 
 @dataclass
 class TaskSchema:
-    """任务 Schema 定义"""
+    """Task Schema definition"""
     name: str
     description: str
     fields: List[FieldDefinition] = field(default_factory=list)
     root_key: Optional[str] = None
 
     def add_field(self, field_def: FieldDefinition) -> 'TaskSchema':
-        """添加字段定义"""
+        """Add field definition"""
         self.fields.append(field_def)
         return self
 
     def get_field(self, name: str) -> Optional[FieldDefinition]:
-        """获取字段定义"""
+        """Get field definition"""
         for f in self.fields:
             if f.name == name:
                 return f
         return None
 
     def to_json_schema(self) -> Dict[str, Any]:
-        """转换为标准 JSON Schema 格式"""
+        """Convert to standard JSON Schema format"""
         properties = {}
         required = []
 
@@ -206,11 +206,11 @@ class TaskSchema:
         return schema
 
     def to_json_schema_string(self, indent: int = 2) -> str:
-        """转换为 JSON Schema 字符串"""
+        """Convert to JSON Schema string"""
         return json.dumps(self.to_json_schema(), ensure_ascii=False, indent=indent)
 
     def validate(self, data: Dict[str, Any]) -> tuple[bool, List[str]]:
-        """验证数据是否符合 Schema"""
+        """Validate data against Schema"""
         errors = []
 
         for field_def in self.fields:
@@ -222,16 +222,16 @@ class TaskSchema:
         return len(errors) == 0, errors
 
     def get_required_fields(self) -> List[str]:
-        """获取必需字段列表"""
+        """Get required fields list"""
         return [f.name for f in self.fields if f.required]
 
     def get_optional_fields(self) -> List[str]:
-        """获取可选字段列表"""
+        """Get optional fields list"""
         return [f.name for f in self.fields if not f.required]
 
 
 class ExtractionTask:
-    """抽取任务定义"""
+    """Extraction task definition"""
 
     def __init__(
         self,
@@ -241,8 +241,8 @@ class ExtractionTask:
         domain: str = "general",
         custom_prompt_template: Optional[str] = None,
         custom_rules: Optional[List[str]] = None,
-        enable_thinking: bool = True,
-        thinking_tag: str = "Structured"
+        enable_thinking: bool = False,
+        thinking_tag: str = "think"
     ):
         self.schema = schema
         self.task_type = task_type
@@ -254,7 +254,7 @@ class ExtractionTask:
         self.thinking_tag = thinking_tag
 
     def get_task_info(self) -> Dict[str, Any]:
-        """获取任务信息"""
+        """Get task information"""
         return {
             "name": self.schema.name,
             "description": self.schema.description,
@@ -267,7 +267,7 @@ class ExtractionTask:
 
 
 class SchemaRegistry:
-    """Schema 注册表 - 管理所有已注册的 Schema"""
+    """Schema registry - manages all registered Schemas"""
 
     _instance = None
     _schemas: Dict[str, TaskSchema] = {}
@@ -279,22 +279,22 @@ class SchemaRegistry:
 
     @classmethod
     def register(cls, schema: TaskSchema) -> None:
-        """注册 Schema"""
+        """Register Schema"""
         cls._schemas[schema.name] = schema
 
     @classmethod
     def get(cls, name: str) -> Optional[TaskSchema]:
-        """获取 Schema"""
+        """Get Schema"""
         return cls._schemas.get(name)
 
     @classmethod
     def list(cls) -> List[str]:
-        """列出所有已注册的 Schema 名称"""
+        """List all registered Schema names"""
         return list(cls._schemas.keys())
 
     @classmethod
     def unregister(cls, name: str) -> bool:
-        """注销 Schema"""
+        """Unregister Schema"""
         if name in cls._schemas:
             del cls._schemas[name]
             return True

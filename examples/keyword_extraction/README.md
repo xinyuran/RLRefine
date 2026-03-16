@@ -1,29 +1,31 @@
-# 关键词提取示例
+# Keyword Extraction Example
 
-本示例展示如何使用 RLRefine 框架进行关键词提取。
+This example demonstrates how to use the RLRefine framework for keyword extraction from Chinese e-commerce reviews.
 
-## 运行方法
+> **Note**: This example was designed and tested for Chinese text by the author (rxy). English effectiveness has not been fully validated.
 
-### 1. 启动 vLLM 服务
+## How to Run
+
+### 1. Start the vLLM Service
 
 ```bash
 vllm serve Qwen/Qwen2.5-7B-Instruct --port 8000
 ```
 
-### 2. 运行示例
+### 2. Run the Example
 
 ```bash
 cd RLRefine
 python examples/keyword_extraction/run.py
 ```
 
-## 文件说明
+## File Descriptions
 
-- `schema.py`: 定义关键词提取的 JSON Schema
-- `config.py`: 任务配置
-- `run.py`: 运行脚本
-- `sample_data.jsonl`: 示例数据
+- `schema.py`: Defines the JSON Schema for keyword extraction
+- `config.py`: Task configuration
+- `run.py`: Main execution script
+- `sample_data.jsonl`: Sample data
 
-## 自定义任务
+## Custom Tasks
 
-参考主 README.md 的 [自定义任务](#自定义任务) 章节。
+Refer to the [Custom Tasks](../../README.md#custom-tasks) section in the main README.

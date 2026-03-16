@@ -1,5 +1,5 @@
 """
-配置系统 - 基于Schema的动态配置
+Configuration system - Schema-based dynamic configuration
 """
 import os
 from typing import Dict, List, Any, Optional
@@ -7,7 +7,7 @@ from .schema import TaskSchema, ExtractionTask, SchemaRegistry
 
 
 class Config:
-    """框架配置类"""
+    """Framework configuration class"""
 
     def __init__(
         self,
@@ -25,7 +25,7 @@ class Config:
         self._apply_task_config()
 
     def _load_env_file(self, env_file: str):
-        """从 .env 文件加载配置"""
+        """Load configuration from .env file"""
         try:
             from dotenv import load_dotenv
             load_dotenv(env_file)
@@ -33,7 +33,7 @@ class Config:
             pass
 
     def _init_default_values(self):
-        """初始化默认值"""
+        """Initialize default values"""
         self.vllm_base_url = os.getenv("VLLM_BASE_URL", "http://localhost:8000/v1")
         self.vllm_api_key = os.getenv("VLLM_API_KEY", "dummy")
         self.model_name = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-7B-Instruct")
@@ -74,7 +74,7 @@ class Config:
         self.debug = os.getenv("DEBUG", "false").lower() == "true"
 
     def _apply_task_config(self):
-        """应用任务特定配置"""
+        """Apply task-specific configuration"""
         if self.task is None:
             return
 
@@ -91,13 +91,13 @@ class Config:
 
     @classmethod
     def from_schema(cls, schema: TaskSchema, task: ExtractionTask = None, env_file: str = None) -> 'Config':
-        """从 Schema 创建配置"""
+        """Create configuration from Schema"""
         config = cls(task_schema=schema, task=task, env_file=env_file)
         return config
 
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any]) -> 'Config':
-        """从字典创建配置"""
+        """Create configuration from dict"""
         instance = cls()
         for key, value in config_dict.items():
             if hasattr(instance, key):
@@ -106,7 +106,7 @@ class Config:
 
     @classmethod
     def load_from_yaml(cls, yaml_path: str, env_file: str = None) -> 'Config':
-        """从 YAML 文件加载配置"""
+        """Load configuration from YAML file"""
         import yaml
         with open(yaml_path, 'r', encoding='utf-8') as f:
             config_dict = yaml.safe_load(f)
@@ -123,7 +123,7 @@ class Config:
         return config
 
     def to_dict(self) -> Dict[str, Any]:
-        """转换为字典"""
+        """Convert to dict"""
         return {
             'vllm_base_url': self.vllm_base_url,
             'vllm_api_key': self.vllm_api_key,
@@ -158,7 +158,7 @@ class Config:
         }
 
     def save_to_yaml(self, yaml_path: str) -> None:
-        """保存配置到 YAML 文件"""
+        """Save configuration to YAML file"""
         import yaml
         with open(yaml_path, 'w', encoding='utf-8') as f:
             yaml.dump(self.to_dict(), default_flow_style=False, allow_unicode=True)

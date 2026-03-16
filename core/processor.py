@@ -1,5 +1,5 @@
 """
-核心处理逻辑：通用信息提取处理器
+Core processing logic: generic structured data extraction processor
 """
 import json
 import logging
@@ -18,7 +18,7 @@ from .fallback import jieba_fallback_extract
 
 
 class RLRefineProcessor:
-    """通用结构化数据处理器"""
+    """Generic structured data extraction processor"""
 
     def __init__(
         self,
@@ -34,10 +34,10 @@ class RLRefineProcessor:
             base_url=self.config.vllm_base_url,
             api_key=self.config.vllm_api_key
         )
-        logging.info(f"RLRefineProcessor 初始化完成，vLLM服务: {self.config.vllm_base_url}")
+        logging.info(f"RLRefineProcessor initialized, vLLM service: {self.config.vllm_base_url}")
 
     def _preprocess_text(self, text: str) -> str:
-        """文本预处理"""
+        """Text preprocessing"""
         if not isinstance(text, str):
             text = str(text)
 
@@ -75,7 +75,7 @@ class RLRefineProcessor:
         return text
 
     def _get_prompts(self, text: str) -> tuple:
-        """获取 System 和 User Prompt"""
+        """Get System and User Prompt"""
         if self.prompt_builder:
             return self.prompt_builder.build(text, enable_thinking=self.config.enable_thinking)
 
@@ -84,7 +84,7 @@ class RLRefineProcessor:
         return self._build_default_prompt(text)
 
     def _build_default_prompt(self, text: str) -> tuple:
-        """构建默认 Prompt"""
+        """Build default Prompt"""
         schema_json = "{}"
         if self.task and self.task.schema:
             schema_json = self.task.schema.to_json_schema_string()
@@ -109,7 +109,7 @@ class RLRefineProcessor:
         return system_prompt, user_prompt
 
     def _build_simple_prompt(self, text: str) -> tuple:
-        """构建简单 Prompt（短文本）"""
+        """Build simple Prompt (short text)"""
         schema_json = "{}"
         if self.task and self.task.schema:
             schema_json = self.task.schema.to_json_schema_string()
@@ -121,7 +121,7 @@ class RLRefineProcessor:
         return system_prompt, user_prompt
 
     def _build_request_params(self, system_prompt: str, user_prompt: str, use_penalty: bool = False, seed_offset: int = 0) -> dict:
-        """构建 LLM 请求参数，处理 Thinking 模式与 response_format 的兼容性"""
+        """Build LLM request parameters, handle Thinking mode and response_format compatibility"""
         params = {
             "model": self.config.model_name,
             "messages": [
@@ -133,10 +133,10 @@ class RLRefineProcessor:
             "seed": self.config.seed + seed_offset
         }
 
-        # Thinking 模式与 response_format=json_object 互斥：
-        # 当 enable_thinking=True 时，Prompt 要求先输出 <tag>...</tag> 思考过程，
-        # 这与 json_object 模式冲突（json_object 强制输出纯 JSON），
-        # 因此 Thinking 模式下不设置 response_format。
+        # Thinking mode is mutually exclusive with response_format=json_object:
+        # When enable_thinking=True, the Prompt requires the model to first output <tag>...</tag> thinking process,
+        # which conflicts with json_object mode (json_object forces pure JSON output),
+        # so response_format is not set in Thinking mode.
         if not self.config.enable_thinking and self.config.response_format:
             params["response_format"] = self.config.response_format
 
@@ -147,29 +147,39 @@ class RLRefineProcessor:
         return params
 
     def _call_llm(self, system_prompt: str, user_prompt: str, use_penalty: bool = False, seed_offset: int = 0) -> Optional[str]:
-        """调用 LLM API"""
+        """Call LLM API"""
         try:
             params = self._build_request_params(system_prompt, user_prompt, use_penalty, seed_offset)
 
-            resp = self.client.chat.completions.create(**params)
+            try:
+                resp = self.client.chat.completions.create(**params)
+            except Exception as e:
+                # If extra_body (vLLM-specific) caused the error, retry without it
+                if "extra_body" in params and "extra_body" in str(e):
+                    logging.warning("extra_body not supported by backend, retrying without it")
+                    params.pop("extra_body", None)
+                    resp = self.client.chat.completions.create(**params)
+                else:
+                    raise
+
             raw_content = resp.choices[0].message.content
             finish_reason = resp.choices[0].finish_reason
 
-            logging.debug(f"LLM 响应: finish_reason={finish_reason}, length={len(raw_content) if raw_content else 0}")
+            logging.debug(f"LLM response: finish_reason={finish_reason}, length={len(raw_content) if raw_content else 0}")
 
             if finish_reason == 'length':
-                logging.warning("LLM 输出被截断 (finish_reason=length)，可能需要增加 max_tokens")
+                logging.warning("LLM output truncated (finish_reason=length), consider increasing max_tokens")
 
             if raw_content is None:
                 return None
             return raw_content.strip() if raw_content else None
         except Exception as e:
-            logging.error(f"LLM 调用失败: {type(e).__name__}: {e}")
-            logging.debug(f"详细错误栈:\n{traceback.format_exc()}")
+            logging.error(f"LLM call failed: {type(e).__name__}: {e}")
+            logging.debug(f"Detailed traceback:\n{traceback.format_exc()}")
             return None
 
     def _extract_json_from_thinking(self, response: str) -> str:
-        """从 Thinking 模式的响应中提取 JSON 部分"""
+        """Extract JSON from Thinking mode response"""
         if not self.config.enable_thinking:
             return response
 
@@ -180,8 +190,8 @@ class RLRefineProcessor:
 
     def _parse_response(self, response: str) -> Optional[Dict]:
         """
-        解析 LLM 响应，基于 Schema 的必需字段进行验证。
-        如果没有 Schema，则接受任何合法 JSON。
+        Parse LLM response, validate against Schema's required fields.
+        If no Schema is provided, accept any valid JSON.
         """
         if not response:
             return None
@@ -191,7 +201,7 @@ class RLRefineProcessor:
         if response.startswith("```json"):
             response = response.replace("```json", "").replace("```", "").strip()
 
-        # 尝试从响应中找到 JSON 对象
+        # Try to find JSON object in response
         json_match = re.search(r'\{.*\}', response, re.DOTALL)
         if not json_match:
             return None
@@ -216,21 +226,21 @@ class RLRefineProcessor:
 
     @staticmethod
     def _has_required_fields(data: dict, required_fields: List[str]) -> bool:
-        """检查字典是否包含所有必需字段"""
+        """Check if dict contains all required fields"""
         if not required_fields:
             return True
         return all(field in data for field in required_fields)
 
     def _post_process(self, parsed_data: Dict, original_text: str) -> Dict:
         """
-        对提取结果执行后处理（去重、排序、过滤等）。
-        仅当结果中包含 keywords 字段且为列表时才执行。
+        Post-process extraction results (deduplication, sorting, filtering, etc.).
+        Only executed when results contain a keywords field that is a list.
         """
         keywords_data = parsed_data.get("keywords")
         if not isinstance(keywords_data, list) or not keywords_data:
             return parsed_data
 
-        # 仅对列表嵌套列表的格式执行后处理（如 [["推理", "关键词", 0.9], ...]）
+        # Only post-process nested list format (e.g. [["reasoning", "keyword", 0.9], ...])
         if not keywords_data or not isinstance(keywords_data[0], list):
             return parsed_data
 
@@ -263,7 +273,7 @@ class RLRefineProcessor:
         return parsed_data
 
     def _fallback_extract(self, text: str) -> List:
-        """兜底提取"""
+        """Fallback extraction"""
         if not self.config.enable_fallback:
             return []
 
@@ -275,16 +285,16 @@ class RLRefineProcessor:
             )
             return result if result else []
         except Exception as e:
-            logging.error(f"兜底提取失败: {e}")
+            logging.error(f"Fallback extraction failed: {e}")
             return []
 
     def process_single(self, text: str, text_id: str = "unknown") -> Dict[str, Any]:
-        """处理单条文本"""
+        """Process a single text"""
         original_text = text
         text = self._preprocess_text(text)
 
         if not text or len(text.strip()) == 0:
-            return {"id": text_id, "data": None, "error": "预处理后文本为空"}
+            return {"id": text_id, "data": None, "error": "Text is empty after preprocessing"}
 
         system_prompt, user_prompt = self._get_prompts(text)
 
@@ -302,19 +312,19 @@ class RLRefineProcessor:
             if parsed_data is None:
                 retry_count += 1
                 if retry_count <= max_retries:
-                    logging.info(f"重试 {retry_count}/{max_retries}")
+                    logging.info(f"Retry {retry_count}/{max_retries}")
 
         if parsed_data is None:
-            logging.warning(f"LLM 提取失败，启用兜底机制")
+            logging.warning(f"LLM extraction failed, activating fallback")
             fallback_data = self._fallback_extract(text)
             if fallback_data:
                 return {"id": text_id, "data": {"keywords": fallback_data}, "fallback": True}
-            return {"id": text_id, "data": None, "error": "提取失败"}
+            return {"id": text_id, "data": None, "error": "Extraction failed"}
 
         if self.task and self.task.schema:
             is_valid, errors = self.task.schema.validate(parsed_data)
             if not is_valid:
-                logging.warning(f"Schema 验证失败: {errors}")
+                logging.warning(f"Schema validation failed: {errors}")
 
         if self.config.enable_post_process:
             parsed_data = self._post_process(parsed_data, text)
@@ -322,17 +332,17 @@ class RLRefineProcessor:
         return {"id": text_id, "data": parsed_data}
 
     def _process_single_item(self, item: Dict) -> Dict:
-        """处理单个数据项（用于多线程）"""
+        """Process a single data item (for multithreading)"""
         text_id = item.get('id', 'unknown')
         text = item.get('describe', '') or item.get('text', '')
         return self.process_single(text, text_id)
 
     def process_batch(self, texts_with_ids: List[Dict], show_progress: bool = True) -> List[Dict]:
-        """批量处理文本"""
+        """Batch process texts"""
         results = []
         total_batches = (len(texts_with_ids) + self.config.batch_size - 1) // self.config.batch_size
 
-        logging.info(f"开始批量处理，共 {len(texts_with_ids)} 条，{total_batches} 个批次")
+        logging.info(f"Starting batch processing, total {len(texts_with_ids)} items, {total_batches} batches")
 
         for batch_idx in range(total_batches):
             start_idx = batch_idx * self.config.batch_size
@@ -343,11 +353,11 @@ class RLRefineProcessor:
                 batch_results = list(tqdm(
                     executor.map(self._process_single_item, batch_items),
                     total=len(batch_items),
-                    desc=f"批次 {batch_idx + 1}/{total_batches}",
+                    desc=f"Batch {batch_idx + 1}/{total_batches}",
                     disable=not show_progress
                 ))
 
             results.extend(batch_results)
 
-        logging.info(f"批量处理完成，共 {len(results)} 条")
+        logging.info(f"Batch processing completed, total {len(results)} items")
         return results

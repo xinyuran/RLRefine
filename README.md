@@ -1,305 +1,310 @@
+[English](README.md) | [中文](README_CN.md)
+
 # RLRefine
 
-**用强化学习精炼 LLM 的思考过程与信息提取能力**
+**Refine LLM's Reasoning & Extraction via Reinforcement Learning**
 
-> Refine LLM's Reasoning & Extraction via RL (SFT → DPO → GRPO)
+> SFT → DPO → GRPO training pipeline for structured information extraction
 
----
-
-## 这个项目解决什么问题？
-
-在用 LLM 做关键词提取等信息抽取任务时，原始模型存在以下核心问题：
-
-- **思考过程粗糙**：模型缺乏系统性的分析步骤，经常跳过关键推理环节，导致提取结果质量不稳定
-- **关键词质量差**：遗漏重要关键词、提取的词粒度不一致、无法正确处理否定词场景
-- **幻觉严重**：输出的关键词不在原文中，模型自行编造或归纳总结
-- **输出格式不可控**：JSON 格式错误、字段缺失、陷入重复 token 循环等
-
-**RLRefine 的核心思路**：通过构造包含高质量思考过程的训练数据，使用 `SFT → DPO → GRPO` 三阶段 RL 训练流水线，让模型学会更规范的推理方式，从而**提升提取结果的准确率和一致性**。JSON 输出的稳定性则是训练过程中附带获得的工程收益。
+> **Note**: This project was primarily designed and tested for **Chinese e-commerce review keyword extraction** by the author (rxy). While the framework architecture is language-agnostic, the built-in prompts and post-processing are optimized for Chinese text. English effectiveness has not been fully validated — users should test and adapt for their own use cases.
 
 ---
 
-## 核心特性
+## What Problem Does This Solve?
 
-| 特性 | 说明 |
-|------|------|
-| **RL 训练全流程** | 内置 SFT → DPO → GRPO 训练脚本，逐阶段精炼模型的思考与提取能力（基于 ms-swift） |
-| **Schema 驱动的 Reward** | GRPO 奖励函数以**提取准确率（F1）为主导**（权重 50%），同时兼顾思考质量、格式正确性和幻觉惩罚 |
-| **Schema 驱动** | 用 Python 代码定义 JSON Schema，框架自动生成 Prompt、验证响应、构建 Reward |
-| **动态 Prompt 生成** | 根据 Schema 和任务规则自动生成 System/User Prompt，支持长文本/短文本自动切换 |
-| **多级容错推理** | LLM 调用 → 带惩罚参数重试 → Jieba 规则兜底 → 硬截断兜底，确保生产环境永远有返回值 |
-| **完整后处理流水线** | 去重、Top-N 截取、停用词过滤、时间/日期词过滤、原文对齐验证、智能回填 |
-| **开箱即用的示例** | 附带关键词提取完整示例，可直接运行 |
+When using LLMs for keyword extraction and other information extraction tasks, base models have these core issues:
+
+- **Shallow reasoning**: Models lack systematic analysis steps, often skipping critical reasoning, leading to inconsistent extraction quality
+- **Poor keyword quality**: Missing important keywords, inconsistent granularity, inability to handle negation scenarios
+- **Hallucination**: Outputting keywords not present in the original text
+- **Uncontrollable output format**: JSON format errors, missing fields, repetitive token loops
+
+**RLRefine's approach**: Construct training data with high-quality reasoning processes, use a `SFT → DPO → GRPO` three-stage RL training pipeline to teach models better reasoning patterns, thereby **improving extraction accuracy and consistency**. JSON output stability is an engineering benefit gained during training.
 
 ---
 
-## 架构概览
+## Key Features
+
+| Feature | Description |
+|---------|-------------|
+| **Full RL Training Pipeline** | Built-in SFT → DPO → GRPO training scripts, progressively refining model reasoning and extraction (based on ms-swift) |
+| **Schema-Driven Reward** | GRPO reward function is **dominated by extraction accuracy (F1)** (50% weight), also considering reasoning quality, format correctness, and hallucination penalty |
+| **Schema-Driven** | Define JSON Schema in Python code; the framework auto-generates Prompts, validates responses, and builds Rewards |
+| **Dynamic Prompt Generation** | Auto-generates System/User Prompts based on Schema and task rules, with automatic long/short text switching |
+| **Multi-Level Fault Tolerance** | LLM call → retry with penalty params → Jieba rule-based fallback → hard truncation fallback, ensuring production environments always get a return value |
+| **Complete Post-Processing Pipeline** | Deduplication, Top-N selection, stopword filtering, time/date word filtering, original text alignment validation, smart backfill |
+| **Ready-to-Use Examples** | Includes complete keyword extraction example that can be run directly |
+
+---
+
+## Architecture Overview
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                      RLRefine 框架                            │
+│                      RLRefine Framework                       │
 ├────────────────────────────┬─────────────────────────────────┤
 │                            │                                  │
-│   RL 训练流水线 (核心)       │   推理引擎 (工程配套)             │
+│   RL Training Pipeline     │   Inference Engine               │
+│   (Core)                   │   (Engineering)                  │
 │                            │                                  │
 │  ┌─────┐  ┌─────┐  ┌─────┐│  ┌──────────┐  ┌────────────┐  │
 │  │ SFT │─▶│ DPO │─▶│GRPO ││  │  Schema   │─▶│  Prompt    │  │
-│  └─────┘  └─────┘  └──┬──┘│  │  定义任务  │  │  Builder   │  │
+│  └─────┘  └─────┘  └──┬──┘│  │  (Define) │  │  Builder   │  │
 │                        │   │  └──────────┘  └──────┬─────┘  │
 │  ┌─────────────────────▼─┐ │                       │         │
 │  │  Schema-Based Reward  │ │  ┌────────────────────▼──────┐  │
-│  │                       │ │  │     LLM (vLLM) 推理       │  │
-│  │  准确率 F1    (50%)   │ │  └────────────────────┬──────┘  │
-│  │  Schema验证   (20%)   │ │                       │         │
-│  │  格式检查     (20%)   │ │         ┌─────────────▼───────┐ │
-│  │  思考质量     (10%)   │ │         │  _parse_response()  │ │
-│  │  幻觉惩罚  (-0.1/词)  │ │         │  Schema 验证 JSON   │ │
+│  │                       │ │  │     LLM (vLLM) Inference  │  │
+│  │  Accuracy F1  (50%)   │ │  └────────────────────┬──────┘  │
+│  │  Schema Valid (20%)   │ │                       │         │
+│  │  Format Check (20%)   │ │         ┌─────────────▼───────┐ │
+│  │  Thinking Q.  (10%)   │ │         │  _parse_response()  │ │
+│  │  Hallucin.  (-0.1/w)  │ │         │  Schema Validate    │ │
 │  └───────────────────────┘ │         └─────────┬───────────┘ │
 │                            │                   │              │
 │                            │      ┌────────────▼──────────┐  │
 │                            │      │   post_process()       │  │
-│                            │      │   去重/过滤/Top-N/验证  │  │
+│                            │      │   Dedup/Filter/Top-N   │  │
 │                            │      └────────────┬──────────┘  │
-│                            │                   │ 失败时       │
+│                            │                   │ On failure   │
 │                            │      ┌────────────▼──────────┐  │
-│                            │      │   Jieba 兜底提取       │  │
+│                            │      │   Jieba Fallback       │  │
 │                            │      └───────────────────────┘  │
 └────────────────────────────┴─────────────────────────────────┘
 ```
 
 ---
 
-## 目录结构
+## Directory Structure
 
 ```
 RLRefine/
-├── rl/                            # 强化学习训练模块（核心）
-│   ├── reward_builder.py          #   Schema 驱动的奖励函数（用于 GRPO）
-│   ├── convert_sft_to_grpo.py     #   SFT 数据格式转 GRPO 格式的工具
-│   ├── sft_finetune.sh            #   SFT 训练脚本（基于 ms-swift）
-│   ├── dpo_finetune.sh            #   DPO 训练脚本（基于 ms-swift）
-│   └── grpo_finetune.sh           #   GRPO 训练脚本（基于 ms-swift + vLLM）
+├── rl/                            # Reinforcement learning training module (core)
+│   ├── reward_builder.py          #   Schema-driven reward function (for GRPO)
+│   ├── convert_sft_to_grpo.py     #   SFT to GRPO data format converter
+│   ├── sft_finetune.sh            #   SFT training script (based on ms-swift)
+│   ├── dpo_finetune.sh            #   DPO training script (based on ms-swift)
+│   └── grpo_finetune.sh           #   GRPO training script (based on ms-swift + vLLM)
 │
-├── core/                          # 核心模块
-│   ├── schema.py                  #   Schema 定义与验证（TaskSchema, FieldDefinition, ExtractionTask）
-│   ├── config.py                  #   配置系统（支持 .env / YAML / 字典）
-│   ├── processor.py               #   核心处理器（推理 + 重试 + 兜底 + 后处理）
-│   ├── preprocess.py              #   文本预处理（去噪、去 Emoji、去 URL 等）
-│   ├── post_process.py            #   关键词后处理（去重、过滤、Top-N、原文验证）
-│   └── fallback.py                #   Jieba 兜底提取（TF-IDF / TextRank / 简单分词）
+├── core/                          # Core module
+│   ├── schema.py                  #   Schema definition & validation (TaskSchema, FieldDefinition, ExtractionTask)
+│   ├── config.py                  #   Configuration system (supports .env / YAML / dict)
+│   ├── processor.py               #   Core processor (inference + retry + fallback + post-processing)
+│   ├── preprocess.py              #   Text preprocessing (noise removal, emoji, URL, etc.)
+│   ├── post_process.py            #   Keyword post-processing (dedup, filter, Top-N, original text validation)
+│   └── fallback.py                #   Jieba fallback extraction (TF-IDF / TextRank / simple segmentation)
 │
-├── prompts/                       # Prompt 模块
-│   ├── prompt_builder.py          #   动态 Prompt 生成器（根据 Schema 自动构建）
-│   ├── prompt_template_3.py       #   关键词提取 Prompt 模板（长文本版）
-│   └── prompt_template_4_short.py #   关键词提取 Prompt 模板（短文本版）
+├── prompts/                       # Prompt module
+│   ├── prompt_builder.py          #   Dynamic Prompt generator (auto-builds from Schema)
+│   ├── prompt_template_3.py       #   Keyword extraction Prompt template (long text)
+│   └── prompt_template_4_short.py #   Keyword extraction Prompt template (short text)
 │
-├── scripts/                       # 工具脚本
-│   └── run_vllm.sh                #   一键启动 vLLM 推理服务
+├── scripts/                       # Utility scripts
+│   └── run_vllm.sh                #   One-click vLLM inference service startup
 │
-├── examples/                      # 使用示例
-│   └── keyword_extraction/        #   关键词提取示例
-│       ├── schema.py              #     任务 Schema 定义
-│       ├── config.py              #     任务配置
-│       ├── run.py                 #     运行入口
-│       ├── sample_data.jsonl      #     示例数据
-│       └── .env.example           #     环境变量模板
+├── examples/                      # Usage examples
+│   └── keyword_extraction/        #   Keyword extraction example
+│       ├── schema.py              #     Task Schema definition
+│       ├── config.py              #     Task configuration
+│       ├── run.py                 #     Entry point
+│       ├── sample_data.jsonl      #     Sample data
+│       └── .env.example           #     Environment variable template
 │
-├── .env.example                   # 环境变量模板
-├── requirements.txt               # Python 依赖
-└── README.md                      # 本文件
+├── .env.example                   # Environment variable template
+├── requirements.txt               # Python dependencies
+└── README.md                      # This file
 ```
 
 ---
 
-## 安装
+## Installation
 
-### 环境要求
+### Requirements
 
 - Python >= 3.10
-- NVIDIA GPU（推理和训练均需要）
+- NVIDIA GPU (required for both inference and training)
 - CUDA >= 12.0
 
-### 安装步骤
+### Setup
 
 ```bash
-# 1. 克隆项目
+# 1. Clone the project
 git clone https://github.com/your-username/RLRefine.git
 cd RLRefine
 
-# 2. 安装依赖
+# 2. Install dependencies
 pip install -r requirements.txt
 pip install python-dotenv
 
-# 3. 配置环境变量
+# 3. Configure environment variables
 cp .env.example .env
-# 编辑 .env，修改 VLLM_BASE_URL 和 MODEL_NAME
+# Edit .env, modify VLLM_BASE_URL and MODEL_NAME
 ```
 
-`requirements.txt` 包含以下依赖：
+`requirements.txt` contains:
 
 ```
-openai>=1.0.0        # OpenAI 兼容客户端（用于调用 vLLM）
-tqdm>=4.66.0         # 进度条
-jieba>=0.42.1        # 中文分词（兜底提取用）
-pyyaml>=6.0.0        # YAML 配置支持
-ms-swift>=3.11.0     # RL 训练框架（仅训练时需要）
-vllm>=0.6.0          # 推理后端（仅服务端需要）
+openai>=1.0.0        # OpenAI-compatible client (for calling vLLM)
+tqdm>=4.66.0         # Progress bar
+jieba>=0.42.1        # Chinese word segmentation (for fallback extraction)
+pyyaml>=6.0.0        # YAML configuration support
+ms-swift>=3.11.0     # RL training framework (only needed for training)
+vllm>=0.6.0          # Inference backend (only needed server-side)
 ```
 
-> 如果你只需要推理（不需要训练），可以跳过 `ms-swift` 和 `vllm` 的安装。推理只需要 `openai`、`tqdm`、`jieba`。
+> If you only need inference (no training), you can skip installing `ms-swift` and `vllm`. Inference only requires `openai`, `tqdm`, and `jieba`.
 
 ---
 
-## RL 训练流程
+## RL Training Pipeline
 
-这是本项目的核心贡献。通过三阶段渐进式训练，逐步精炼模型的思考过程和提取能力。
+This is the core contribution of this project. Through three-stage progressive training, the model's reasoning process and extraction capabilities are refined step by step.
 
-### 训练流程概览
+### Training Flow Overview
 
 ```
-基座模型 (Qwen2.5-7B-Instruct)
+Base Model (Qwen2.5-7B-Instruct)
     │
     ▼
- SFT 训练 ──────── 注入高质量思考过程的示范数据，让模型学会"怎么想"
+ SFT Training ──── Inject high-quality reasoning demonstrations, teach model "how to think"
     │
     ▼
- DPO 训练 ──────── 通过好/差对比，让模型学会区分"好的思考"和"差的思考"
+ DPO Training ──── Through good/bad comparison, teach model to distinguish good vs bad reasoning
     │
     ▼
- GRPO 训练 ─────── 以提取准确率为主导的 Reward 直接优化模型行为
+ GRPO Training ─── Directly optimize model behavior with extraction accuracy as primary reward
     │
     ▼
- 精炼后的模型 ──── 思考更系统、提取更准确、输出更稳定
+ Refined Model ─── More systematic thinking, more accurate extraction, more stable output
 ```
 
-### 为什么要用 RL？
+### Why RL?
 
-原始 LLM 在关键词提取时的典型问题：
+Typical issues with base LLMs in keyword extraction:
 
-1. **思考不充分**：直接跳到结论，缺乏对文本的逐步分析
-2. **遗漏关键词**：未能识别否定词场景（如"没有声音"中的"声音"）
-3. **粒度不一致**：有时输出"屏幕很大"，有时输出"屏幕"，缺乏统一标准
-4. **幻觉**：输出原文中不存在的词
+1. **Insufficient reasoning**: Jumping to conclusions without step-by-step text analysis
+2. **Missing keywords**: Failing to recognize negation scenarios (e.g., "no sound" should extract "sound")
+3. **Inconsistent granularity**: Sometimes outputting "large screen", sometimes "screen", lacking unified standards
+4. **Hallucination**: Outputting words not present in the original text
 
-通过 RL 训练，模型学会了：
-- 系统性地拆解文本，先识别主体词再识别描述词
-- 严格的原文对齐意识，不编造不存在的词
-- 一致的关键词粒度（原子级关键词，≤4 个汉字）
-- 规范的输出格式（JSON 稳定性作为附带收益）
+Through RL training, models learn to:
+- Systematically decompose text, identifying subject words before descriptors
+- Maintain strict original text alignment awareness, never fabricating non-existent words
+- Achieve consistent keyword granularity (atomic keywords, ≤4 Chinese characters)
+- Produce standardized output format (JSON stability as an accompanying benefit)
 
-### 步骤 1：准备 SFT 数据
+### Step 1: Prepare SFT Data
 
-SFT 数据是整个训练的基石。你需要构造包含**高质量思考过程**的示范数据，格式为 JSONL：
+SFT data is the foundation of the entire training pipeline. You need to construct demonstration data with **high-quality reasoning processes** in JSONL format:
 
 ```json
 {
   "messages": [
-    {"role": "system", "content": "你是关键词提取专家..."},
-    {"role": "user", "content": "请分析以下评论：这款手机屏幕很大..."},
-    {"role": "assistant", "content": "<think>分析评论内容：1. '屏幕很大'→主体词'屏幕'，描述词'大'；2. '电池耐用'→主体词'电池'...</think>\n{\"keywords\": [[\"识别主体词'屏幕'\", \"屏幕\", 0.95], [\"识别描述词'大'\", \"大\", 0.90]]}"}
+    {"role": "system", "content": "You are a keyword extraction expert..."},
+    {"role": "user", "content": "Please analyze the following review: This phone has a large screen..."},
+    {"role": "assistant", "content": "<think>Analyzing review content: 1. 'large screen' → subject 'screen', descriptor 'large'; 2. 'durable battery' → subject 'battery'...</think>\n{\"keywords\": [[\"Identified subject 'screen'\", \"screen\", 0.95], [\"Identified descriptor 'large'\", \"large\", 0.90]]}"}
   ]
 }
 ```
 
-> 关键：assistant 的回复中需要包含结构化的思考过程（`<think>...</think>` 标签），这是模型需要学习的核心内容。
+> Key: The assistant's response must include a structured reasoning process (`<think>...</think>` tags) — this is the core content the model needs to learn.
 
-### 步骤 2：SFT 训练
+### Step 2: SFT Training
 
-使用 ms-swift 进行有监督微调，让模型初步学会思考和提取的模式：
+Use ms-swift for supervised fine-tuning to teach the model the basic patterns of reasoning and extraction:
 
 ```bash
-# 修改 rl/sft_finetune.sh 中的路径，然后运行
+# Edit paths in rl/sft_finetune.sh, then run
 bash rl/sft_finetune.sh
 ```
 
-`sft_finetune.sh` 中的关键参数：
+Key parameters in `sft_finetune.sh`:
 
-| 参数 | 默认值 | 说明 |
-|------|--------|------|
-| `MODEL_PATH` | Qwen2.5-7B-Instruct | 基座模型路径 |
-| `DATASET_PATH` | `sft_data.jsonl` | SFT 训练数据路径 |
-| `LORA_RANK` | `16` | LoRA 秩 |
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `MODEL_PATH` | Qwen2.5-7B-Instruct | Base model path |
+| `DATASET_PATH` | `sft_data.jsonl` | SFT training data path |
+| `LORA_RANK` | `16` | LoRA rank |
 | `LORA_ALPHA` | `64` | LoRA Alpha |
-| `LEARNING_RATE` | `1e-5` | 学习率 |
-| `MAX_LENGTH` | `8192` | 最大序列长度 |
+| `LEARNING_RATE` | `1e-5` | Learning rate |
+| `MAX_LENGTH` | `8192` | Maximum sequence length |
 
-### 步骤 3：DPO 训练
+### Step 3: DPO Training
 
-DPO 需要偏好数据对（chosen / rejected）。可以用更强的模型（如 Qwen-Max）自动生成。
+DPO requires preference data pairs (chosen / rejected). You can use a stronger model (e.g., Qwen-Max) to auto-generate these.
 
 ```bash
-# 修改 rl/dpo_finetune.sh 中的路径，然后运行
+# Edit paths in rl/dpo_finetune.sh, then run
 bash rl/dpo_finetune.sh
 ```
 
-`dpo_finetune.sh` 中的关键参数：
+Key parameters in `dpo_finetune.sh`:
 
-| 参数 | 默认值 | 说明 |
-|------|--------|------|
-| `MODEL_PATH` | `./output/sft_merged_model` | SFT 合并后的模型路径 |
-| `DATASET_PATH` | `./data/dpo_dataset.jsonl` | DPO 训练数据路径 |
-| `BETA` | `0.2` | KL 散度惩罚系数（控制偏离程度） |
-| `LEARNING_RATE` | `5e-7` | 学习率（DPO 需要很小的学习率） |
-| `LORA_RANK` | `8` | LoRA 秩 |
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `MODEL_PATH` | `./output/sft_merged_model` | SFT merged model path |
+| `DATASET_PATH` | `./data/dpo_dataset.jsonl` | DPO training data path |
+| `BETA` | `0.2` | KL divergence penalty coefficient |
+| `LEARNING_RATE` | `5e-7` | Learning rate (DPO needs very small LR) |
+| `LORA_RANK` | `8` | LoRA rank |
 
-### 步骤 4：GRPO 训练
+### Step 4: GRPO Training
 
-GRPO 是最关键的一步。它通过 **采样多组输出 → 计算奖励 → 策略优化** 的方式，直接以提取准确率为目标优化模型。
+GRPO is the most critical step. It directly optimizes model behavior with extraction accuracy as the objective through **sampling multiple outputs → computing rewards → policy optimization**.
 
 ```bash
-# 1. 将 SFT 数据转为 GRPO 格式（移除 assistant 回复，只保留 prompt）
+# 1. Convert SFT data to GRPO format (remove assistant replies, keep only prompts)
 python rl/convert_sft_to_grpo.py
 
-# 2. 修改 rl/grpo_finetune.sh 中的路径，然后运行
+# 2. Edit paths in rl/grpo_finetune.sh, then run
 bash rl/grpo_finetune.sh
 ```
 
-`grpo_finetune.sh` 中的关键参数：
+Key parameters in `grpo_finetune.sh`:
 
-| 参数 | 默认值 | 说明 |
-|------|--------|------|
-| `MODEL_PATH` | `./output/dpo/checkpoint-xxx-merged` | DPO 合并后的模型路径 |
-| `BETA` | `0.01` | KL 惩罚系数（GRPO 需要更小的值） |
-| `NUM_GENERATIONS` | `8` | 每个 prompt 采样的输出数量 |
-| `TEMPERATURE` | `0.9` | 采样温度（需要足够高以产生多样性） |
-| `REWARD_FUNCS` | `schema_based_reward` | 奖励函数名称 |
-| `EXTERNAL_PLUGINS` | `reward_builder.py` | 奖励函数文件 |
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `MODEL_PATH` | `./output/dpo/checkpoint-xxx-merged` | DPO merged model path |
+| `BETA` | `0.01` | KL penalty coefficient (GRPO needs smaller value) |
+| `NUM_GENERATIONS` | `8` | Number of sampled outputs per prompt |
+| `TEMPERATURE` | `0.9` | Sampling temperature (needs to be high enough for diversity) |
+| `REWARD_FUNCS` | `schema_based_reward` | Reward function name |
+| `EXTERNAL_PLUGINS` | `reward_builder.py` | Reward function file |
 
-### Reward Function（奖励函数）
+### Reward Function
 
-`rl/reward_builder.py` 中的 `SchemaBasedReward` 对模型输出进行多维评估，**以提取准确率为绝对主导**：
+`SchemaBasedReward` in `rl/reward_builder.py` evaluates model outputs across multiple dimensions, **dominated by extraction accuracy**:
 
-| 评估维度 | 权重 | 说明 |
-|----------|------|------|
-| **准确率** | **0.5** | **与参考答案的 F1 Score（核心指标）** |
-| **Schema 验证** | 0.2 | 必需字段是否存在、关键词项格式是否正确 |
-| **格式检查** | 0.2 | JSON 是否合法、标签是否完整 |
-| **思考质量** | 0.1 | 思考过程长度是否合理、是否包含分析性词汇 |
-| **幻觉惩罚** | -0.1/词 | 输出的关键词不在原文中则扣分（最多扣 0.3） |
+| Dimension | Weight | Description |
+|-----------|--------|-------------|
+| **Accuracy** | **0.5** | **F1 Score against reference answer (core metric)** |
+| **Schema Validation** | 0.2 | Required fields present, keyword item format correct |
+| **Format Check** | 0.2 | JSON validity, tag completeness |
+| **Thinking Quality** | 0.1 | Reasoning process length appropriate, contains analytical vocabulary |
+| **Hallucination Penalty** | -0.1/word | Deduction for keywords not in original text (max -0.3) |
 
-> 设计理念：准确率占 50%，因为**提取质量才是最终目标**。格式和思考过程的约束是为准确率服务的手段，而非目的本身。
+> Design philosophy: Accuracy accounts for 50% because **extraction quality is the ultimate goal**. Format and reasoning constraints are means to serve accuracy, not ends in themselves.
 
 ---
 
-## 快速开始
+## Quick Start
 
-### 第一步：启动 vLLM 推理服务
+### Step 1: Start vLLM Inference Service
 
-RLRefine 使用 vLLM 作为推理后端（通过 OpenAI 兼容 API）。
+RLRefine uses vLLM as the inference backend (via OpenAI-compatible API).
 
 ```bash
-# 方式一：直接启动
+# Option 1: Direct launch
 vllm serve Qwen/Qwen2.5-7B-Instruct --port 8000
 
-# 方式二：使用项目提供的脚本（支持 GPU 和端口参数）
-bash scripts/run_vllm.sh 0 8000    # GPU 0, 端口 8000
+# Option 2: Use project script (supports GPU and port args)
+bash scripts/run_vllm.sh 0 8000    # GPU 0, Port 8000
 ```
 
-等待看到 `Application startup complete` 后，服务即就绪。
+Wait until you see `Application startup complete`, then the service is ready.
 
-### 第二步：配置环境变量
+### Step 2: Configure Environment Variables
 
-编辑 `.env` 文件（或 `examples/keyword_extraction/.env`）：
+Edit the `.env` file (or `examples/keyword_extraction/.env`):
 
 ```bash
 VLLM_BASE_URL=http://localhost:8000/v1
@@ -307,14 +312,14 @@ VLLM_API_KEY=dummy
 MODEL_NAME=Qwen/Qwen2.5-7B-Instruct
 ```
 
-### 第三步：运行示例
+### Step 3: Run the Example
 
 ```bash
 cd RLRefine
 python examples/keyword_extraction/run.py
 ```
 
-你将看到类似的输出：
+You will see output similar to:
 
 ```json
 {
@@ -327,112 +332,116 @@ python examples/keyword_extraction/run.py
 
 ---
 
-## 核心概念
+## Core Concepts
 
-### 1. Schema — 定义你的 JSON 结构
+### 1. Schema — Define Your JSON Structure
 
-`TaskSchema` 是整个框架的起点。你用它定义期望 LLM 输出的 JSON 结构，框架会自动：
-- 将 Schema 嵌入 Prompt，告诉模型应该输出什么格式
-- 用 Schema 的必需字段验证 LLM 响应是否合法
-- 用 Schema 构建 GRPO 的 Reward 函数
+`TaskSchema` is the starting point of the entire framework. You use it to define the expected JSON output structure from the LLM. The framework will automatically:
+- Embed the Schema in the Prompt, telling the model what format to output
+- Validate LLM responses using the Schema's required fields
+- Build GRPO Reward functions using the Schema
 
 ```python
 from core.schema import TaskSchema, FieldDefinition, FieldType, ExtractionTask
 
-# 定义 Schema
+# Define Schema
 schema = TaskSchema(
     name="keyword_extraction",
-    description="电商评论关键词提取",
+    description="E-commerce review keyword extraction",
 )
 
-# 添加字段
+# Add fields
 schema.add_field(FieldDefinition(
     name="keywords",
     type=FieldType.ARRAY,
-    description="提取的关键词列表",
-    required=True,              # 必需字段：LLM 响应中必须包含
-    min_length=1,               # 至少提取 1 个关键词
-    max_length=15               # 最多提取 15 个关键词
+    description="Extracted keyword list",
+    required=True,              # Required field: must be present in LLM response
+    min_length=1,               # Extract at least 1 keyword
+    max_length=15               # Extract at most 15 keywords
 ))
 
 schema.add_field(FieldDefinition(
     name="category",
     type=FieldType.STRING,
-    description="评论类别",
-    required=False              # 可选字段
+    description="Review category",
+    required=False              # Optional field
 ))
 
-# 创建任务
+# Create task
 task = ExtractionTask(
     schema=schema,
     task_type="extraction",
     language="zh",
     domain="ecommerce",
-    enable_thinking=False,      # 是否让模型先输出思考过程
-    custom_rules=[              # 任务特定规则（会嵌入 Prompt）
-        "关键词长度限制在1-4个汉字",
-        "必须来自原文，不可编造"
+    enable_thinking=False,      # Only set True for RL-trained models (see FAQ)
+    custom_rules=[              # Task-specific rules (embedded in Prompt)
+        "Keyword length limited to 1-4 Chinese characters",
+        "Must come from original text, no fabrication"
     ]
 )
 ```
 
-### 2. Config — 控制框架行为
+### 2. Config — Control Framework Behavior
 
-`Config` 类管理所有可配置项。你可以从 `.env` 文件、YAML 文件或字典中加载配置。
+The `Config` class manages all configurable options. You can load configuration from `.env` files, YAML files, or dictionaries.
 
 ```python
 from core.config import Config
 
 config = Config(task_schema=schema, task=task)
 
-# 推理参数
-config.max_token = 1024         # 最大生成 token 数
-config.temperature = 0.0        # 温度（0 = 确定性输出）
-config.max_retries = 3          # 最大重试次数
-config.seed = 42                # 随机种子
+# Inference parameters
+config.max_token = 1024         # Max generation tokens
+config.temperature = 0.0        # Temperature (0 = deterministic output)
+config.max_retries = 3          # Max retry count
+config.seed = 42                # Random seed
 
-# 惩罚参数（重试 2 次后自动启用，打破重复循环）
+# Penalty parameters (auto-enabled after 2 retries, breaks repetition loops)
 config.frequency_penalty = 0.3
 config.repetition_penalty = 1.1
 
-# 后处理开关
+# Post-processing switches
 config.enable_post_process = True
-config.post_process_top_n = 8                    # 保留前 N 个关键词
-config.post_process_filter_stopwords = True      # 过滤停用词
-config.post_process_filter_time = True           # 过滤时间词（如"8点"）
-config.post_process_filter_date = True           # 过滤日期词（如"27号"）
-config.post_process_filter_long = True           # 过滤超长关键词
-config.post_process_max_keyword_length = 6       # 关键词最大长度
-config.post_process_filter_not_in_original = True # 过滤原文中不存在的关键词
+config.post_process_top_n = 8                    # Keep top N keywords
+config.post_process_filter_stopwords = True      # Filter stopwords
+config.post_process_filter_time = True           # Filter time words (e.g., "8 o'clock")
+config.post_process_filter_date = True           # Filter date words (e.g., "27th")
+config.post_process_filter_long = True           # Filter overly long keywords
+config.post_process_max_keyword_length = 6       # Max keyword length
+config.post_process_filter_not_in_original = True # Filter keywords not in original text
 ```
 
-### 3. PromptBuilder — 自动生成 Prompt
+### 3. PromptBuilder — Auto-Generate Prompts
 
-`PromptBuilder` 根据 Schema 和任务规则自动构建 System Prompt 和 User Prompt。
+`PromptBuilder` automatically constructs System Prompt and User Prompt based on Schema and task rules.
 
-有三种使用方式：
+Three usage methods are available — you can flexibly switch between them (just comment/uncomment the corresponding code):
 
 ```python
 from prompts.prompt_builder import PromptBuilder
 
-# 方式一：使用内置的关键词提取 Prompt（经过实战验证的模板）
-builder = PromptBuilder.create_keyword_extraction_builder()
+# --- Method 1: Use built-in keyword extraction Prompt (battle-tested template) ---
+# Suitable for direct use in keyword extraction tasks, no need to write Prompts manually
+prompt_builder = PromptBuilder.create_keyword_extraction_builder()
 
-# 方式二：从 Task 自动生成（Schema 驱动）
-builder = PromptBuilder.from_task(task)
+# --- Method 2: Auto-generate from Task (Schema-driven) ---
+# Framework auto-generates Prompt based on your defined Schema and custom_rules
+# prompt_builder = PromptBuilder.from_task(task)
 
-# 方式三：完全自定义
-def my_prompt_generator(text, task):
-    system = "你是提取专家..."
-    user = f"提取：{text}"
-    return system, user
-
-builder = PromptBuilder(custom_prompt_generator=my_prompt_generator)
+# --- Method 3: Fully custom ---
+# Use when you need full control over Prompt content
+# def my_prompt_generator(input_text: str, task) -> tuple:
+#     system = "You are an extraction expert..."
+#     user = f"Extract: {input_text}"
+#     return system, user
+# prompt_builder = PromptBuilder(custom_prompt_generator=my_prompt_generator)
 ```
 
-### 4. RLRefineProcessor — 核心处理器
+> See [`examples/keyword_extraction/run.py`](examples/keyword_extraction/run.py) for complete usage of all three methods.
 
-将上述组件组合在一起，执行完整的推理流程：
+### 4. RLRefineProcessor — Core Processor
+
+Combines the above components to execute the complete inference flow:
 
 ```python
 from core.processor import RLRefineProcessor
@@ -443,86 +452,86 @@ processor = RLRefineProcessor(
     prompt_builder=builder
 )
 
-# 单条处理
+# Single text processing
 result = processor.process_single(
-    text="这款手机屏幕很大，电池也很耐用，但是拍照效果一般",
+    text="This phone has a large screen and durable battery, but camera is mediocre",
     text_id="001"
 )
 print(result)
-# {'id': '001', 'data': {'keywords': ['屏幕', '电池', '拍照']}}
+# {'id': '001', 'data': {'keywords': ['screen', 'battery', 'camera']}}
 
-# 批量处理（自动多线程并发）
+# Batch processing (automatic multi-threaded concurrency)
 input_data = [
-    {"id": "001", "describe": "这款手机屏幕很大"},
-    {"id": "002", "describe": "衣服质量很好，面料舒服"},
-    {"id": "003", "describe": "物流很快，包装完好"},
+    {"id": "001", "describe": "This phone has a large screen"},
+    {"id": "002", "describe": "Clothing quality is great, fabric is comfortable"},
+    {"id": "003", "describe": "Fast logistics, intact packaging"},
 ]
 results = processor.process_batch(input_data)
 ```
 
-**`process_single` 的完整执行流程：**
+**Complete execution flow of `process_single`:**
 
 ```
-输入文本
+Input Text
   │
   ▼
-预处理（去噪、去 Emoji、去 URL、截断）
+Preprocessing (noise removal, emoji, URL, truncation)
   │
   ▼
-生成 Prompt（PromptBuilder 根据 Schema 构建）
+Generate Prompt (PromptBuilder builds from Schema)
   │
   ▼
-调用 LLM（通过 vLLM OpenAI 兼容 API）
+Call LLM (via vLLM OpenAI-compatible API)
   │
-  ├─ 成功 ──▶ 解析 JSON ──▶ Schema 验证 ──▶ 后处理 ──▶ 返回结果
+  ├─ Success ──▶ Parse JSON ──▶ Schema Validation ──▶ Post-Processing ──▶ Return Result
   │
-  ├─ 失败 ──▶ 重试（前 2 次用常规参数，后 2 次加惩罚参数）
+  ├─ Failure ──▶ Retry (first 2 with normal params, next 2 with penalty params)
   │
-  └─ 全部失败 ──▶ Jieba 兜底提取 ──▶ 返回兜底结果
+  └─ All Failed ──▶ Jieba Fallback Extraction ──▶ Return Fallback Result
 ```
 
 ---
 
-## 推理引擎的容错机制
+## Inference Engine Fault Tolerance
 
-在生产环境中，LLM 推理不可能 100% 成功，必须有完善的容错机制。这是本框架的工程配套能力。
+In production environments, LLM inference cannot succeed 100% of the time — robust fault tolerance is essential. This is the framework's engineering capability.
 
-### 第一层：带惩罚参数重试
+### Layer 1: Retry with Penalty Parameters
 
-当 LLM 输出 JSON 解析失败时，框架会自动重试。前 2 次使用常规参数，从第 3 次开始加入 `frequency_penalty` 和 `repetition_penalty`，打破模型可能陷入的重复 token 循环。
+When LLM output JSON parsing fails, the framework auto-retries. The first 2 attempts use normal parameters; from the 3rd attempt, `frequency_penalty` and `repetition_penalty` are added to break potential repetitive token loops.
 
 ```python
-# processor.py 中的核心逻辑
+# Core logic in processor.py
 while retry_count <= max_retries and parsed_data is None:
-    use_penalty = retry_count >= 2  # 第 3 次开始加惩罚
+    use_penalty = retry_count >= 2  # Add penalty from 3rd attempt
     response = self._call_llm(system_prompt, user_prompt, use_penalty, retry_count)
     parsed_data = self._parse_response(response)
     retry_count += 1
 ```
 
-### 第二层：Jieba 兜底提取
+### Layer 2: Jieba Fallback Extraction
 
-当 LLM 完全失败时，降级为基于规则的 Jieba 提取：
+When LLM completely fails, degrade to rule-based Jieba extraction:
 
-- **TF-IDF** (默认)：基于词频-逆文档频率提取关键词
-- **TextRank**：基于图算法提取关键词
-- **简单分词**：按词性（名词、形容词）提取
+- **TF-IDF** (default): Extract keywords based on term frequency-inverse document frequency
+- **TextRank**: Extract keywords using graph algorithms
+- **Simple segmentation**: Extract by POS tags (nouns, adjectives)
 
-### 第三层：响应解析容错
+### Layer 3: Response Parsing Tolerance
 
-`_parse_response` 方法不依赖 LLM 返回完美的纯 JSON，而是：
+The `_parse_response` method does not rely on the LLM returning perfect pure JSON. Instead, it:
 
-1. 使用正则 `re.search(r'\{.*\}', response)` 从任意文本中提取 JSON 片段
-2. 如果启用了 Thinking 模式，先剥离 `<tag>...</tag>` 标签
-3. 基于 Schema 的必需字段验证，而非硬编码检查固定字段名
+1. Uses regex `re.search(r'\{.*\}', response)` to extract JSON fragments from any text
+2. If Thinking mode is enabled, first strips `<tag>...</tag>` tags
+3. Validates based on Schema's required fields, rather than hardcoded field name checks
 
 ---
 
-## 自定义任务
+## Custom Tasks
 
-以下是创建一个全新任务（如情感分析）的完整步骤。
+Below are the complete steps to create a new task (e.g., sentiment analysis).
 
-### 1. 创建任务目录
+### 1. Create Task Directory
 
 ```
 examples/
@@ -533,7 +542,7 @@ examples/
     └── .env
 ```
 
-### 2. 定义 Schema (`schema.py`)
+### 2. Define Schema (`schema.py`)
 
 ```python
 import os, sys
@@ -543,12 +552,12 @@ sys.path.insert(0, ROOT_DIR)
 from core.schema import TaskSchema, FieldDefinition, FieldType, ExtractionTask
 
 def create_sentiment_task() -> ExtractionTask:
-    schema = TaskSchema(name="sentiment", description="文本情感分析")
+    schema = TaskSchema(name="sentiment", description="Text sentiment analysis")
 
     schema.add_field(FieldDefinition(
         name="sentiment",
         type=FieldType.STRING,
-        description="情感倾向",
+        description="Sentiment polarity",
         required=True,
         enum_values=["positive", "negative", "neutral"]
     ))
@@ -556,7 +565,7 @@ def create_sentiment_task() -> ExtractionTask:
     schema.add_field(FieldDefinition(
         name="confidence",
         type=FieldType.FLOAT,
-        description="置信度",
+        description="Confidence score",
         required=True,
         min_value=0.0,
         max_value=1.0
@@ -565,7 +574,7 @@ def create_sentiment_task() -> ExtractionTask:
     schema.add_field(FieldDefinition(
         name="aspects",
         type=FieldType.ARRAY_OF_OBJECTS,
-        description="方面级情感",
+        description="Aspect-level sentiment",
         required=False
     ))
 
@@ -576,13 +585,13 @@ def create_sentiment_task() -> ExtractionTask:
         domain="ecommerce",
         enable_thinking=False,
         custom_rules=[
-            "综合分析正面和负面情感",
-            "置信度反映情感明确程度"
+            "Analyze both positive and negative sentiments",
+            "Confidence reflects the clarity of sentiment"
         ]
     )
 ```
 
-### 3. 定义配置 (`config.py`)
+### 3. Define Config (`config.py`)
 
 ```python
 import os, sys
@@ -599,10 +608,10 @@ class SentimentConfig(Config):
         if not os.path.exists(env_file):
             env_file = None
         super().__init__(task_schema=task.schema, task=task, env_file=env_file)
-        self.enable_post_process = False  # 情感分析不需要关键词后处理
+        self.enable_post_process = False  # Sentiment analysis doesn't need keyword post-processing
 ```
 
-### 4. 运行任务 (`run.py`)
+### 4. Run the Task (`run.py`)
 
 ```python
 import json, os, sys
@@ -622,8 +631,8 @@ def main():
     processor = RLRefineProcessor(config=config, task=task, prompt_builder=builder)
 
     texts = [
-        "这款手机屏幕很大，但是拍照效果一般",
-        "衣服质量非常好，面料舒服，穿起来合身",
+        "This phone has a large screen, but camera is mediocre",
+        "Clothing quality is excellent, fabric is comfortable, fits well",
     ]
 
     input_data = [{"id": i, "text": text} for i, text in enumerate(texts)]
@@ -636,7 +645,7 @@ if __name__ == "__main__":
     main()
 ```
 
-运行后，你会得到类似的输出：
+Expected output:
 
 ```json
 {
@@ -645,8 +654,8 @@ if __name__ == "__main__":
     "sentiment": "neutral",
     "confidence": 0.6,
     "aspects": [
-      {"aspect": "屏幕", "sentiment": "positive", "confidence": 0.9},
-      {"aspect": "拍照", "sentiment": "negative", "confidence": 0.7}
+      {"aspect": "screen", "sentiment": "positive", "confidence": 0.9},
+      {"aspect": "camera", "sentiment": "negative", "confidence": 0.7}
     ]
   }
 }
@@ -654,53 +663,65 @@ if __name__ == "__main__":
 
 ---
 
-## 环境变量
+## Environment Variables
 
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| `VLLM_BASE_URL` | `http://localhost:8000/v1` | vLLM 服务地址 |
-| `VLLM_API_KEY` | `dummy` | vLLM API Key（通常不检查） |
-| `MODEL_NAME` | `Qwen/Qwen2.5-7B-Instruct` | 模型名称/路径 |
-| `DEBUG` | `false` | 调试模式开关 |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `VLLM_BASE_URL` | `http://localhost:8000/v1` | vLLM service URL |
+| `VLLM_API_KEY` | `dummy` | vLLM API Key (usually not validated) |
+| `MODEL_NAME` | `Qwen/Qwen2.5-7B-Instruct` | Model name/path |
+| `DEBUG` | `false` | Debug mode switch |
 
 ---
 
-## 常见问题
+## FAQ
 
-### Q: 模型输出被截断（finish_reason=length）
+### Q: Model output is truncated (finish_reason=length)
 
-**原因**：`max_tokens` 设置过小，或模型陷入重复 token 循环。
+**Cause**: `max_tokens` is set too low, or the model is stuck in a repetitive token loop.
 
-**解决方案**：
-1. 增大 `config.max_token`（默认 1024，建议试试 2048）
-2. 确保 `enable_thinking=False`（Thinking 模式会消耗大量 token 在思考过程上）
-3. 框架已内置 `frequency_penalty` + `repetition_penalty` 重试机制，通常 2-3 次重试即可解决
+**Solution**:
+1. Increase `config.max_token` (default 1024, try 2048)
+2. Ensure `enable_thinking=False` (Thinking mode is only for RL-trained models. For untrained base models like Qwen2.5-7B-Instruct, enabling this will not improve results and will consume excessive tokens while reducing JSON output reliability)
+3. The framework has built-in `frequency_penalty` + `repetition_penalty` retry mechanisms — usually 2-3 retries resolve the issue
 
-### Q: 如何使用微调后的模型？
+### Q: How to use a fine-tuned model?
 
-只需修改 `.env` 中的 `MODEL_NAME` 为你微调后的模型路径，然后用 vLLM 启动该模型即可。框架代码无需任何修改。
+Simply change `MODEL_NAME` in `.env` to your fine-tuned model path, then start that model with vLLM. No framework code changes needed.
 
-### Q: 可以不使用 vLLM 吗？
+### Q: Can I use a backend other than vLLM?
 
-可以。RLRefine 使用 OpenAI 兼容 API 进行推理，任何兼容 OpenAI API 的服务都可以作为后端，包括：
-- OpenAI API 本身
-- Azure OpenAI
-- Ollama（启动时加 `--api` 参数）
-- 任何实现了 `/v1/chat/completions` 接口的服务
+In theory, yes. RLRefine uses the OpenAI-compatible API for inference, so any OpenAI API-compatible service could serve as a backend. However, please note:
 
-### Q: 如何禁用后处理？
+**This project has only been thoroughly tested with vLLM + Qwen2.5-7B-Instruct.** When using other backends, the following parameters may not be supported or may behave differently:
+- `extra_body={"repetition_penalty": ...}` — This is a vLLM-specific parameter, not supported by OpenAI's official API
+- `response_format={"type": "json_object"}` — Behavior may differ across backends
+- `seed` — Different backends may handle seeding differently
+
+If you use other backends (OpenAI API, Azure OpenAI, Ollama, etc.), you may need to modify the `_build_request_params` method in `core/processor.py` to adapt.
+
+### Q: What is `enable_thinking` and when should I use it?
+
+`enable_thinking` controls whether the model outputs a reasoning process in `<think>...</think>` tags before the JSON result.
+
+**Important**: This feature is designed for models that have been through the RL training pipeline (SFT → DPO → GRPO), where the model has learned structured reasoning within these tags. For untrained base models (like Qwen2.5-7B-Instruct), this parameter should always be `False` because:
+- Small models don't have native "thinking" capabilities
+- It conflicts with `response_format=json_object` (mutually exclusive)
+- It consumes excessive tokens without improving extraction quality
+
+### Q: How to disable post-processing?
 
 ```python
 config.enable_post_process = False
 ```
 
-### Q: 如何只使用推理功能，不做 RL 训练？
+### Q: Can I use only inference without RL training?
 
-完全可以。`rl/` 目录下的训练脚本是可选的。你只需要 `core/`、`prompts/`、`examples/` 即可完成推理任务。安装依赖时也可以跳过 `ms-swift` 和 `vllm`。
+Absolutely. The training scripts in `rl/` are optional. You only need `core/`, `prompts/`, and `examples/` for inference tasks. You can also skip installing `ms-swift` and `vllm` when installing dependencies.
 
-### Q: 不做 RL 训练和做了 RL 训练的区别？
+### Q: What's the difference between using and not using RL training?
 
-不做 RL 训练时，框架使用原始基座模型（如 Qwen2.5-7B-Instruct）进行推理，依赖 Prompt 工程和后处理来保证质量。做了 RL 训练后，模型本身具备了更好的思考和提取能力，输出质量显著提升，对后处理的依赖也大幅降低。
+Without RL training, the framework uses the base model (e.g., Qwen2.5-7B-Instruct) for inference, relying on prompt engineering and post-processing for quality. With RL training, the model itself gains better reasoning and extraction capabilities, significantly improving output quality and greatly reducing dependency on post-processing.
 
 ---
 

@@ -1,54 +1,55 @@
-# 关键词后处理模块
-# 用于对模型返回的关键词进行去重、排序、过滤等操作
+# Keyword post-processing module
+# For deduplication, sorting, filtering of model-returned keywords
 
 import os
 import re
 import logging
 
 
-# 停用词缓存字典：{文件路径: 停用词集合}
+# Stopword cache dict: {file_path: stopword_set}
 _stopwords_cache = {}
 
 
 def find_min_span_in_text(keyword, original_text):
     """
-    在原始文本中找到能匹配关键词所有字符的最小连续范围
+    Find the minimum contiguous span in the original text that matches all characters of the keyword.
     
-    使用贪婪算法：从关键词第一个字符在原文中的每个出现位置开始，
-    依次向后查找剩余字符，计算匹配所需的最小范围。
+    Uses a greedy algorithm: starting from each occurrence of the keyword's first character
+    in the text, sequentially searches forward for remaining characters to compute the
+    minimum span needed.
     
     Args:
-        keyword: 待匹配的关键词
-        original_text: 原始文本
+        keyword: The keyword to match
+        original_text: The original text
         
     Returns:
-        最小匹配范围的长度，如果无法匹配则返回 -1
+        Length of the minimum matching span, or -1 if no match is found
     """
     if not keyword or not original_text:
         return -1
     
-    # 过滤掉关键词中的空格
+    # Filter out spaces from keyword
     keyword_chars = [c for c in keyword if c != ' ']
     if not keyword_chars:
         return -1
     
     min_span = float('inf')
     
-    # 找到第一个字符在原文中的所有位置
+    # Find all positions of the first character in the text
     first_char = keyword_chars[0]
     start_positions = [i for i, c in enumerate(original_text) if c == first_char]
     
-    # 对于每个起始位置，尝试贪婪匹配
+    # For each start position, attempt greedy matching
     for start_pos in start_positions:
         current_pos = start_pos
         matched = True
         
-        # 依次匹配剩余字符
+        # Match remaining characters sequentially
         for i, char in enumerate(keyword_chars):
             if i == 0:
-                continue  # 第一个字符已经匹配
+                continue  # First character already matched
             
-            # 从当前位置向后查找下一个字符
+            # Search forward from current position for the next character
             found = False
             for j in range(current_pos + 1, len(original_text)):
                 if original_text[j] == char:
@@ -61,7 +62,7 @@ def find_min_span_in_text(keyword, original_text):
                 break
         
         if matched:
-            # 计算这次匹配的范围（从起始位置到最后匹配位置）
+            # Calculate the span of this match (from start to last matched position)
             span = current_pos - start_pos + 1
             min_span = min(min_span, span)
     
@@ -70,26 +71,27 @@ def find_min_span_in_text(keyword, original_text):
 
 def validate_keyword_chars_in_text(keyword, original_text, max_span_ratio=2):
     """
-    验证关键词中的每个字符是否都在原始文本中紧凑地存在
+    Validate that each character of the keyword exists compactly in the original text.
     
-    该函数用于过滤掉模型"自行推理总结"产生的、原文中不存在的关键词。
+    This function filters out keywords that the model "inferred/summarized on its own"
+    and do not actually exist in the original text.
     
-    验证规则：
-    1. 关键词的每个字符都必须在原文中存在
-    2. 这些字符在原文中的最小匹配范围不能超过关键词长度的 max_span_ratio 倍
+    Validation rules:
+    1. Every character of the keyword must exist in the original text
+    2. The minimum matching span in the text must not exceed max_span_ratio times the keyword length
     
-    例如（假设 max_span_ratio=2）：
-    - 原文"已经退货"，关键词"没退货" → 无效（"没"不在原文中）
-    - 原文"衣服不怎么粘肉"，关键词"不粘肉" → 有效（范围5，关键词长度3，比例1.67<2）
-    - 原文"聊个不停...一天"，关键词"聊天" → 无效（字符散落太远，范围远超2倍）
+    Examples (assuming max_span_ratio=2):
+    - Text "已经退货", keyword "没退货" -> invalid ("没" not in text)
+    - Text "衣服不怎么粘肉", keyword "不粘肉" -> valid (span=5, keyword length=3, ratio 1.67<2)
+    - Text "聊个不停...一天", keyword "聊天" -> invalid (characters too scattered, span far exceeds 2x)
     
     Args:
-        keyword: 待验证的关键词
-        original_text: 原始文本（建议传入预处理后的文本）
-        max_span_ratio: 最大跨度倍数（默认为2，即匹配范围不超过关键词长度的2倍）
+        keyword: The keyword to validate
+        original_text: The original text (preprocessed text recommended)
+        max_span_ratio: Maximum span ratio (default 2, i.e. matching span must not exceed 2x keyword length)
         
     Returns:
-        True 如果关键词验证通过，否则 False
+        True if the keyword passes validation, False otherwise
     """
     if not isinstance(keyword, str) or not isinstance(original_text, str):
         return False
@@ -97,31 +99,31 @@ def validate_keyword_chars_in_text(keyword, original_text, max_span_ratio=2):
     if not keyword or not original_text:
         return False
     
-    # 过滤掉关键词中的空格
+    # Filter out spaces from keyword
     keyword_chars = [c for c in keyword if c != ' ']
     if not keyword_chars:
         return False
     
     keyword_len = len(keyword_chars)
     
-    # 1. 首先检查每个字符是否都在原文中存在
+    # 1. First check that every character exists in the original text
     original_chars = set(original_text)
     for char in keyword_chars:
         if char not in original_chars:
             return False
     
-    # 2. 检查字符在原文中的紧凑性（最小匹配范围）
+    # 2. Check compactness of characters in the text (minimum matching span)
     min_span = find_min_span_in_text(keyword, original_text)
     
     if min_span < 0:
-        # 无法找到匹配，说明字符顺序不对或不存在
+        # No match found, character order is wrong or characters don't exist
         return False
     
-    # 计算允许的最大范围
+    # Calculate the maximum allowed span
     max_allowed_span = keyword_len * max_span_ratio
     
     if min_span > max_allowed_span:
-        logging.debug(f"[原文验证] 关键词'{keyword}'跨度过大: 最小范围={min_span}, 允许最大={max_allowed_span}")
+        logging.debug(f"[Text validation] Keyword '{keyword}' span too large: min_span={min_span}, max_allowed={max_allowed_span}")
         return False
     
     return True
@@ -129,133 +131,134 @@ def validate_keyword_chars_in_text(keyword, original_text, max_span_ratio=2):
 
 def filter_keywords_not_in_original(keywords_data, original_text, keyword_idx=1, max_span_ratio=2):
     """
-    过滤掉不在原始文本中的关键词
+    Filter out keywords that do not exist in the original text.
     
-    遍历关键词列表，检查每个关键词的所有字符是否都在原始文本中紧凑地存在，
-    过滤掉包含原文中不存在字符的关键词，以及字符散落过远的拼凑关键词。
+    Iterates through the keyword list, checking that all characters of each keyword
+    exist compactly in the original text. Filters out keywords containing characters
+    not in the text, as well as keywords with characters scattered too far apart.
     
     Args:
-        keywords_data: 关键词数据列表，格式为 [[推理, 关键词, 分数], ...]
-        original_text: 原始文本（建议传入预处理后的文本）
-        keyword_idx: 关键词在列表中的索引位置（新格式为1，旧格式为0）
-        max_span_ratio: 最大跨度倍数（默认为2，即匹配范围不超过关键词长度的2倍）
+        keywords_data: Keyword data list, format [[reasoning, keyword, score], ...]
+        original_text: The original text (preprocessed text recommended)
+        keyword_idx: Index position of keyword in the list (1 for new format, 0 for old format)
+        max_span_ratio: Maximum span ratio (default 2, i.e. matching span must not exceed 2x keyword length)
         
     Returns:
-        过滤后的关键词数据列表
+        Filtered keyword data list
     """
     if not keywords_data or not original_text:
         return keywords_data
     
     filtered_data = []
-    filtered_out = []  # 记录被过滤的关键词（用于调试）
+    filtered_out = []  # Track filtered keywords (for debugging)
     
     for item in keywords_data:
         if len(item) > keyword_idx:
             keyword = item[keyword_idx]
             
-            # 确保关键词是字符串类型
+            # Ensure keyword is a string type
             if not isinstance(keyword, str):
                 continue
             
-            # 验证关键词中的每个字符是否都在原文中紧凑地存在
+            # Validate that each character of the keyword exists compactly in the text
             if validate_keyword_chars_in_text(keyword, original_text, max_span_ratio):
                 filtered_data.append(item)
             else:
                 filtered_out.append(keyword)
     
-    # 调试输出
+    # Debug output
     if filtered_out:
-        logging.info(f"[原文验证过滤] 过滤前: {len(keywords_data)} 个, 过滤后: {len(filtered_data)} 个, 被过滤: {filtered_out}")
+        logging.info(f"[Text validation filter] Before: {len(keywords_data)}, after: {len(filtered_data)}, filtered out: {filtered_out}")
     
     return filtered_data
 
 
 
-# ==================== 通用中文数字模式 ====================
-# 包含：零一二三四五六七八九十百千万亿（简体）
-#       壹贰叁肆伍陆柒捌玖拾佰仟萬億（繁体/大写）
-#       〇两（特殊数字）
+# ==================== Common Chinese numeral patterns ====================
+# Includes: 零一二三四五六七八九十百千万亿 (simplified)
+#           壹贰叁肆伍陆柒捌玖拾佰仟萬億 (traditional/uppercase)
+#           〇两 (special numerals)
 CHINESE_NUM_PATTERN = r'[零〇一二三四五六七八九十百千万亿壹贰叁肆伍陆柒捌玖拾佰仟萬億两]+'
-# 阿拉伯数字模式
+# Arabic numeral pattern
 ARABIC_NUM_PATTERN = r'\d+'
-# 任意数字模式（中文或阿拉伯数字）
+# Any numeral pattern (Chinese or Arabic)
 ANY_NUM_PATTERN = f'(?:{CHINESE_NUM_PATTERN}|{ARABIC_NUM_PATTERN})'
 
 
 def is_date_keyword(keyword):
     """
-    判断关键词是否为日期相关词汇
+    Determine whether a keyword is a date-related term.
     
-    检测规则：
-    - 年份：2024年、二零二四年、二千零二十四年
-    - 月份：1月、一月、01月
-    - 日期：1号、一号、01号、1日、一日
-    - 完整日期：5月15、五月十五号、2024年11月
-    - 星期：周一、星期一、礼拜一
-    - 相对日期：今天、昨天、明天、前天、后天
+    Detection rules:
+    - Year: 2024年, 二零二四年, 二千零二十四年
+    - Month: 1月, 一月, 01月
+    - Day: 1号, 一号, 01号, 1日, 一日
+    - Full date: 5月15, 五月十五号, 2024年11月
+    - Day of week: 周一, 星期一, 礼拜一
+    - Relative date: 今天, 昨天, 明天, 前天, 后天
     
     Args:
-        keyword: 待检测的关键词
+        keyword: The keyword to check
         
     Returns:
-        True 如果是日期关键词，否则 False
+        True if it is a date keyword, False otherwise
     """
     if not isinstance(keyword, str):
         return False
     
-    # ===== 1. 年份检测 =====
+    # ===== 1. Year detection =====
     
-    # 1.1 数字年份：2024年、24年、任意数字+年
+    # 1.1 Numeric year: 2024年, 24年, any digits + 年
     if re.search(ARABIC_NUM_PATTERN + r'\s*年', keyword):
         return True
     
-    # 1.2 中文年份：二零二四年、二〇二四年、二千零二十四年
+    # 1.2 Chinese year: 二零二四年, 二〇二四年, 二千零二十四年
     if re.search(CHINESE_NUM_PATTERN + r'\s*年', keyword):
         return True
     
-    # ===== 2. 月份检测 =====
+    # ===== 2. Month detection =====
     
-    # 2.1 数字月份：1月、01月、12月
+    # 2.1 Numeric month: 1月, 01月, 12月
     if re.search(ARABIC_NUM_PATTERN + r'\s*月', keyword):
         return True
     
-    # 2.2 中文月份：一月、十二月、任意中文数字+月
+    # 2.2 Chinese month: 一月, 十二月, any Chinese numeral + 月
     if re.search(CHINESE_NUM_PATTERN + r'\s*月', keyword):
         return True
     
-    # ===== 3. 日期检测 =====
+    # ===== 3. Day detection =====
     
-    # 3.1 数字日期：1号、01号、1日、01日
+    # 3.1 Numeric day: 1号, 01号, 1日, 01日
     if re.search(ARABIC_NUM_PATTERN + r'\s*[号日]', keyword):
         return True
     
-    # 3.2 中文日期：一号、二十七号、三十一日
+    # 3.2 Chinese day: 一号, 二十七号, 三十一日
     if re.search(CHINESE_NUM_PATTERN + r'\s*[号日]', keyword):
         return True
     
-    # 3.3 只有"号"字（在特定上下文中）
+    # 3.3 Standalone "号" or "日" (in specific contexts)
     if keyword == '号' or keyword == '日':
         return True
     
-    # ===== 4. 完整日期格式 =====
+    # ===== 4. Full date formats =====
     
-    # 4.1 月日组合：5月15、11.15、11-15、11/15
+    # 4.1 Month-day combination: 5月15, 11.15, 11-15, 11/15
     if re.search(ARABIC_NUM_PATTERN + r'\s*月\s*' + ARABIC_NUM_PATTERN, keyword):
         return True
     if re.search(r'\d{1,2}[\./-]\d{1,2}', keyword):
         return True
     
-    # 4.2 中文月日组合：五月十五
+    # 4.2 Chinese month-day combination: 五月十五
     if re.search(CHINESE_NUM_PATTERN + r'\s*月\s*' + CHINESE_NUM_PATTERN, keyword):
         return True
     
-    # 4.3 年月日组合：2024年11月15日
+    # 4.3 Year-month-day combination: 2024年11月15日
     if re.search(ANY_NUM_PATTERN + r'\s*年\s*' + ANY_NUM_PATTERN + r'\s*月\s*' + ANY_NUM_PATTERN + r'\s*[日号]?', keyword):
         return True
     
-    # ===== 5. 星期检测 =====
+    # ===== 5. Day of week detection =====
     
-    # 5.1 星期：周X、星期X、礼拜X（使用通用模式）
+    # 5.1 Day of week: 周X, 星期X, 礼拜X (using generic patterns)
     if re.search(r'周[一二三四五六日天]', keyword):
         return True
     if re.search(r'星期[一二三四五六日天]', keyword):
@@ -263,11 +266,11 @@ def is_date_keyword(keyword):
     if re.search(r'礼拜[一二三四五六日天]', keyword):
         return True
     
-    # 5.2 工作日、周末
+    # 5.2 Workday, weekend
     if '工作日' in keyword or '周末' in keyword or '双休' in keyword:
         return True
     
-    # ===== 6. 相对日期 =====
+    # ===== 6. Relative dates =====
     
     relative_dates = [
         '今天', '今日', '今儿',
@@ -281,17 +284,17 @@ def is_date_keyword(keyword):
         if date in keyword:
             return True
     
-    # ===== 7. 其他日期表达 =====
+    # ===== 7. Other date expressions =====
     
-    # 7.1 月初、月中、月末、月底
+    # 7.1 Beginning/middle/end of month: 月初, 月中, 月末, 月底
     if re.search(r'月[初中末底]', keyword):
         return True
     
-    # 7.2 上旬、中旬、下旬
+    # 7.2 First/middle/last ten days: 上旬, 中旬, 下旬
     if '旬' in keyword and any(x in keyword for x in ['上', '中', '下']):
         return True
     
-    # 7.3 季度：任意数字+季度、Q+数字
+    # 7.3 Quarter: any numeral + 季度, Q + digits
     if re.search(r'第?' + ANY_NUM_PATTERN + r'\s*季度', keyword):
         return True
     if re.search(r'[Qq]' + ARABIC_NUM_PATTERN, keyword):
@@ -302,36 +305,36 @@ def is_date_keyword(keyword):
 
 def is_time_keyword(keyword):
     """
-    判断关键词是否为时间相关词汇
+    Determine whether a keyword is a time-related term.
     
-    使用与预处理阶段相同的检测规则，确保一致性。
+    Uses the same detection rules as the preprocessing stage for consistency.
     
-    检测规则（与 preprocess_v2.py 中的 remove_time_expressions 保持一致）：
-    - 标准时间格式：8:40、08:40:30、8.40、8点40分30秒
-    - 口语化时间：8点多、8点半、8点左右、差5分8点
-    - 时间段：早上、上午、中午、下午、晚上、凌晨、夜里
-    - 模糊时间：刚才、现在、马上、立刻、稍后
+    Detection rules (consistent with remove_time_expressions in preprocess_v2.py):
+    - Standard time formats: 8:40, 08:40:30, 8.40, 8点40分30秒
+    - Colloquial time: 8点多, 8点半, 8点左右, 差5分8点
+    - Time periods: 早上, 上午, 中午, 下午, 晚上, 凌晨, 夜里
+    - Fuzzy time: 刚才, 现在, 马上, 立刻, 稍后
     
     Args:
-        keyword: 待检测的关键词
+        keyword: The keyword to check
         
     Returns:
-        True 如果是时间关键词，否则 False
+        True if it is a time keyword, False otherwise
     """
     if not isinstance(keyword, str):
         return False
     
-    # ===== 1. 标准时间格式 =====
+    # ===== 1. Standard time formats =====
     
-    # 1.1 冒号分隔的时间：8:40、08:40:30、23:59:59
+    # 1.1 Colon-separated time: 8:40, 08:40:30, 23:59:59
     if re.search(r'\d{1,2}:\d{1,2}(:\d{1,2})?', keyword):
         return True
     
-    # 1.2 点号分隔的时间：8.40、8.40.30（排除价格）
+    # 1.2 Dot-separated time: 8.40, 8.40.30 (excludes prices)
     if re.search(r'(?<!\d)\d{1,2}\.\d{1,2}(\.\d{1,2})?(?!\d)', keyword):
         return True
     
-    # 1.3 中文完整时间：8点40分30秒、8点40分、8点40、八点四十分（统一使用通用数字模式）
+    # 1.3 Chinese full time: 8点40分30秒, 8点40分, 8点40, 八点四十分 (using generic numeral pattern)
     if re.search(ANY_NUM_PATTERN + r'\s*点\s*' + ANY_NUM_PATTERN + r'\s*分\s*' + ANY_NUM_PATTERN + r'\s*秒', keyword):
         return True
     if re.search(ANY_NUM_PATTERN + r'\s*点\s*' + ANY_NUM_PATTERN + r'\s*分', keyword):
@@ -339,7 +342,7 @@ def is_time_keyword(keyword):
     if re.search(ANY_NUM_PATTERN + r'\s*点\s*' + ANY_NUM_PATTERN + r'(?![分秒])', keyword):
         return True
     
-    # 1.4 中文时间单位：8点、40分、30秒、8时、40分钟（数字或中文数字）
+    # 1.4 Chinese time units: 8点, 40分, 30秒, 8时, 40分钟 (numeric or Chinese numeral)
     if re.search(ANY_NUM_PATTERN + r'\s*[点时]\s*(?:钟)?', keyword):
         return True
     if re.search(ANY_NUM_PATTERN + r'\s*分\s*(?:钟)?', keyword):
@@ -347,37 +350,37 @@ def is_time_keyword(keyword):
     if re.search(ANY_NUM_PATTERN + r'\s*秒\s*(?:钟)?', keyword):
         return True
     
-    # ===== 2. 口语化时间表达 =====
+    # ===== 2. Colloquial time expressions =====
     
-    # 2.1 模糊时间：8点多、8点半、8点左右、8点钟左右（数字或中文数字）
+    # 2.1 Approximate time: 8点多, 8点半, 8点左右, 8点钟左右 (numeric or Chinese numeral)
     if re.search(ANY_NUM_PATTERN + r'\s*[点时]\s*[多半来钟]', keyword):
         return True
     if re.search(ANY_NUM_PATTERN + r'\s*[点时]\s*(?:左右|上下)', keyword):
         return True
     
-    # 2.2 差几分几点：差5分8点、差一刻9点（数字或中文数字）
+    # 2.2 "X minutes to Y o'clock": 差5分8点, 差一刻9点 (numeric or Chinese numeral)
     if re.search(r'差\s*' + ANY_NUM_PATTERN + r'\s*分\s*' + ANY_NUM_PATTERN + r'\s*[点时]', keyword):
         return True
     if re.search(r'差\s*' + CHINESE_NUM_PATTERN + r'\s*刻\s*' + ANY_NUM_PATTERN + r'\s*[点时]', keyword):
         return True
     
-    # 2.3 几点几刻：8点一刻、9点三刻（数字或中文数字）
+    # 2.3 "X o'clock and a quarter": 8点一刻, 9点三刻 (numeric or Chinese numeral)
     if re.search(ANY_NUM_PATTERN + r'\s*[点时]\s*' + CHINESE_NUM_PATTERN + r'\s*刻', keyword):
         return True
     
-    # ===== 3. 时间段表达 =====
+    # ===== 3. Time period expressions =====
     
-    # 3.1 时间段：早上、上午、中午、下午、晚上、夜里、凌晨、深夜
+    # 3.1 Time periods: 早上, 上午, 中午, 下午, 晚上, 夜里, 凌晨, 深夜
     time_periods = ['早上', '上午', '中午', '下午', '晚上', '夜里', '凌晨', '深夜', '早晨', '傍晚', '黄昏']
     for period in time_periods:
         if period in keyword:
             return True
     
-    # 3.2 带时间段的完整表达：上午8点、晚上9点半（数字或中文数字）
+    # 3.2 Full expression with time period: 上午8点, 晚上9点半 (numeric or Chinese numeral)
     if re.search(r'[早上中下晚夜凌深][上午里晨间夜]\s*' + ANY_NUM_PATTERN + r'\s*[点时]', keyword):
         return True
     
-    # ===== 4. 模糊时间词 =====
+    # ===== 4. Fuzzy time words =====
     
     fuzzy_time_words = [
         '刚才', '刚刚', '现在', '此刻', '当前', '目前',
@@ -394,45 +397,45 @@ def is_time_keyword(keyword):
 
 def load_stopwords(stopwords_file="stopwords.txt"):
     """
-    从文件加载停用词列表（带缓存机制，避免重复加载）
+    Load stopword list from file (with caching to avoid repeated loading).
     
     Args:
-        stopwords_file: 停用词文件路径（默认为当前目录下的 stopwords.txt）
+        stopwords_file: Path to stopword file (defaults to stopwords.txt in current directory)
         
     Returns:
-        停用词集合（set）
+        Set of stopwords
     """
-    # 如果提供的是相对路径，则相对于当前脚本所在目录
+    # If a relative path is provided, resolve it relative to the script directory
     if not os.path.isabs(stopwords_file):
         script_dir = os.path.dirname(os.path.abspath(__file__))
         stopwords_file = os.path.join(script_dir, stopwords_file)
     
-    # 检查缓存中是否已经加载过该文件
+    # Check if the file has already been loaded (cached)
     if stopwords_file in _stopwords_cache:
         return _stopwords_cache[stopwords_file]
     
-    # 首次加载
+    # First-time loading
     stopwords = set()
     
-    # 检查文件是否存在
+    # Check if file exists
     if not os.path.exists(stopwords_file):
-        logging.warning(f"停用词文件不存在: {stopwords_file}")
+        logging.warning(f"Stopword file not found: {stopwords_file}")
         _stopwords_cache[stopwords_file] = stopwords
         return stopwords
     
     try:
         with open(stopwords_file, 'r', encoding='utf-8') as f:
             for line in f:
-                # 去除首尾空白字符
+                # Strip leading/trailing whitespace
                 word = line.strip()
-                # 跳过空行和注释行
+                # Skip empty lines and comment lines
                 if word and not word.startswith('#'):
                     stopwords.add(word)
-        logging.info(f"成功加载 {len(stopwords)} 个停用词（来自: {os.path.basename(stopwords_file)}）")
-        # 缓存结果
+        logging.info(f"Loaded {len(stopwords)} stopwords (from: {os.path.basename(stopwords_file)})")
+        # Cache the result
         _stopwords_cache[stopwords_file] = stopwords
     except Exception as e:
-        logging.error(f"加载停用词文件失败: {e}")
+        logging.error(f"Failed to load stopword file: {e}")
         _stopwords_cache[stopwords_file] = stopwords
     
     return stopwords
@@ -440,18 +443,18 @@ def load_stopwords(stopwords_file="stopwords.txt"):
 
 def normalize_keywords_data(keywords_data, json_format="new"):
     """
-    规范化关键词数据，确保分数为 float 类型，并验证关键词为字符串
-    支持二元组和三元组格式的自动识别和转换
+    Normalize keyword data, ensuring scores are float type and keywords are strings.
+    Supports automatic detection and conversion between 2-tuple and 3-tuple formats.
     
     Args:
-        keywords_data: 原始关键词数据
-            - 新格式三元组: [["推理", "关键词", 分数], ...]
-            - 新格式二元组: [["关键词", 分数], ...]  # 缺少推理说明
-            - 旧格式: [["关键词", 分数, "理由"], ...]
-        json_format: JSON格式类型，"new"(新格式) 或 "old"(旧格式)
+        keywords_data: Raw keyword data
+            - New format 3-tuple: [["reasoning", "keyword", score], ...]
+            - New format 2-tuple: [["keyword", score], ...]  # missing reasoning
+            - Old format: [["keyword", score, "reason"], ...]
+        json_format: JSON format type, "new" (new format) or "old" (old format)
         
     Returns:
-        规范化后的关键词数据（统一为三元组格式）
+        Normalized keyword data (unified to 3-tuple format)
     """
     if not keywords_data:
         return []
@@ -459,30 +462,30 @@ def normalize_keywords_data(keywords_data, json_format="new"):
     normalized_data = []
     for item in keywords_data:
         if not isinstance(item, list) or len(item) < 2:
-            # 跳过格式不正确的数据（至少需要2个元素）
+            # Skip malformed data (at least 2 elements required)
             continue
         
-        # 根据长度和格式判断数据结构
+        # Determine data structure based on length and format
         if json_format == "new":
             if len(item) == 3:
-                # 标准三元组: ["推理", "关键词", 分数]
+                # Standard 3-tuple: ["reasoning", "keyword", score]
                 reasoning, keyword, score = item[0], item[1], item[2]
             elif len(item) == 2:
-                # 二元组: ["关键词", 分数] - 缺少推理说明
-                # 需要判断哪个是关键词，哪个是分数
+                # 2-tuple: ["keyword", score] - missing reasoning
+                # Need to determine which is keyword and which is score
                 if isinstance(item[0], str) and isinstance(item[1], (int, float, str)):
-                    # 假设第一个是关键词，第二个是分数
-                    reasoning = ""  # 空推理说明
+                    # Assume first is keyword, second is score
+                    reasoning = ""  # Empty reasoning
                     keyword = item[0]
                     score = item[1]
                 else:
-                    # 格式不明确，跳过
+                    # Ambiguous format, skip
                     continue
             else:
-                # 长度不符合预期，跳过
+                # Unexpected length, skip
                 continue
         else:
-            # 旧格式: ["关键词", 分数, "理由"]
+            # Old format: ["keyword", score, "reason"]
             if len(item) >= 2:
                 keyword = item[0]
                 score = item[1]
@@ -490,18 +493,18 @@ def normalize_keywords_data(keywords_data, json_format="new"):
             else:
                 continue
         
-        # 验证关键词是否为字符串类型
+        # Verify keyword is a string type
         if not isinstance(keyword, str):
             continue
         
-        # 转换分数为 float
+        # Convert score to float
         try:
             score = float(score)
         except (ValueError, TypeError):
-            # 如果转换失败，设置默认分数
+            # If conversion fails, use default score
             score = 0.5
         
-        # 统一输出为三元组格式: ["推理", "关键词", 分数]
+        # Unified output as 3-tuple format: ["reasoning", "keyword", score]
         if json_format == "new":
             normalized_data.append([reasoning, keyword, score])
         else:
@@ -535,57 +538,57 @@ def post_process_keywords(
     max_span_ratio=2
 ):
     """
-    对关键词提取结果进行后处理
+    Post-process keyword extraction results.
     
     Args:
-        keywords_data: 原始关键词数据
-            - 新格式: [["推理", "关键词", 分数], ...]
-            - 旧格式: [["关键词", 分数, "理由"], ...]
-        deduplicate: 是否去重（完全相同的词）
-        sort_by_importance: 是否按 importance 分数从高到低排序
-        filter_low_score: 是否过滤低分词
-        score_threshold: 分数阈值（当 filter_low_score=True 时生效）
-        top_n: 是否只保留前 N 个关键词
-        n: 保留的关键词数量（当 top_n=True 时生效）
-        return_full_info: 是否返回完整信息（包括分数和理由），False 则只返回关键词列表
-        json_format: JSON格式类型，"new"(新格式) 或 "old"(旧格式)
-        remove_english: 是否去除包含英文字母的关键词
-        filter_stopwords: 是否启用停用词过滤
-        stopwords_exact_match: 是否启用精确匹配（关键词完全等于停用词时过滤）
-        stopwords_contain_match: 是否启用包含匹配（关键词包含停用词时过滤）
-        stopwords_file: 停用词文件路径（默认为 stopwords.txt）
-        filter_time_keywords: 是否过滤时间相关的关键词（如"8点"、"早上"等）
-        filter_date_keywords: 是否过滤日期相关的关键词（如"27号"、"5月15"等）
-        filter_long_keywords: 是否过滤超长关键词（长度超过max_keyword_length的关键词）
-        max_keyword_length: 关键词最大长度（当 filter_long_keywords=True 时生效，默认为6）
-        backfill_topn: 当启用top_n且过滤后数量不足N时，是否从被过滤的关键词中回填
-        filter_not_in_original: 是否过滤原文中不存在的关键词（检查关键词每个字符是否都在原文中）
-        original_text: 原始文本（当 filter_not_in_original=True 时必须提供，建议传入预处理后的文本）
-        max_span_ratio: 关键词字符在原文中的最大跨度倍数（默认为2，防止字符散落拼凑）
+        keywords_data: Raw keyword data
+            - New format: [["reasoning", "keyword", score], ...]
+            - Old format: [["keyword", score, "reason"], ...]
+        deduplicate: Whether to deduplicate (exact same words)
+        sort_by_importance: Whether to sort by importance score descending
+        filter_low_score: Whether to filter low-score keywords
+        score_threshold: Score threshold (effective when filter_low_score=True)
+        top_n: Whether to keep only top N keywords
+        n: Number of keywords to keep (effective when top_n=True)
+        return_full_info: Whether to return full info (including score and reason), False returns keyword list only
+        json_format: JSON format type, "new" (new format) or "old" (old format)
+        remove_english: Whether to remove keywords containing English letters
+        filter_stopwords: Whether to enable stopword filtering
+        stopwords_exact_match: Whether to enable exact match (filter when keyword exactly equals a stopword)
+        stopwords_contain_match: Whether to enable contains match (filter when keyword contains a stopword)
+        stopwords_file: Path to stopword file (defaults to stopwords.txt)
+        filter_time_keywords: Whether to filter time-related keywords (e.g. "8点", "早上")
+        filter_date_keywords: Whether to filter date-related keywords (e.g. "27号", "5月15")
+        filter_long_keywords: Whether to filter overly long keywords (exceeding max_keyword_length)
+        max_keyword_length: Maximum keyword length (effective when filter_long_keywords=True, default 6)
+        backfill_topn: When top_n is enabled and filtered count is less than N, whether to backfill from filtered keywords
+        filter_not_in_original: Whether to filter keywords not in original text (checks if each character exists in text)
+        original_text: Original text (required when filter_not_in_original=True, preprocessed text recommended)
+        max_span_ratio: Maximum span ratio of keyword characters in original text (default 2, prevents scattered character assembly)
         
     Returns:
-        处理后的关键词列表或完整信息列表
+        Processed keyword list or full info list
     """
-    # 如果输入为空，直接返回空列表
+    # If input is empty, return empty list directly
     if not keywords_data:
         return []
     
-    # 深拷贝一份数据，避免修改原始数据
+    # Deep copy data to avoid modifying the original
     processed_data = [item[:] for item in keywords_data]
     
-    # 确定关键词和分数的位置（根据格式）
+    # Determine keyword and score positions (based on format)
     if json_format == "new":
-        # 新格式: [推理, 关键词, 分数]
+        # New format: [reasoning, keyword, score]
         keyword_idx = 1
         score_idx = 2
     else:
-        # 旧格式: [关键词, 分数, 理由]
+        # Old format: [keyword, score, reason]
         keyword_idx = 0
         score_idx = 1
     
-    # 定义分数获取函数（后续多处使用）
+    # Define score getter function (used in multiple places)
     def get_score(item):
-        """安全地获取分数，处理类型转换"""
+        """Safely get score with type conversion"""
         if len(item) <= score_idx:
             return 0
         score = item[score_idx]
@@ -594,41 +597,41 @@ def post_process_keywords(
         except (ValueError, TypeError):
             return 0
     
-    # 0. 过滤空关键词（最先执行，避免空关键词参与后续处理）
-    # 移除关键词为空字符串的项
+    # 0. Filter empty keywords (executed first to prevent empty keywords from affecting later steps)
+    # Remove items with empty string keywords
     filtered_data = []
-    # logging.info(f"过滤空关键词前: len(processed_data) = {len(processed_data)}")
+    # logging.info(f"Before filtering empty keywords: len(processed_data) = {len(processed_data)}")
     for item in processed_data:
         if len(item) > keyword_idx:
             keyword = item[keyword_idx]
-            # 确保关键词是字符串且非空
+            # Ensure keyword is a non-empty string
             if isinstance(keyword, str) and keyword.strip():
                 filtered_data.append(item)
     processed_data = filtered_data
-    # logging.info(f"过滤空关键词后: len(processed_data) = {len(processed_data)}")
+    # logging.info(f"After filtering empty keywords: len(processed_data) = {len(processed_data)}")
     
-    # 1. 按 importance 分数排序（如果启用）
+    # 1. Sort by importance score (if enabled)
     if sort_by_importance:
         processed_data.sort(key=get_score, reverse=True)
 
     
-    # 2. 去重（如果启用）
+    # 2. Deduplicate (if enabled)
     if deduplicate:
         seen_keywords = set()
         deduplicated_data = []
         for item in processed_data:
             if len(item) > keyword_idx:
                 keyword = item[keyword_idx]
-                # 只保留第一次出现的关键词（由于已排序，保留的是分数最高的）
+                # Keep only the first occurrence (since data is sorted, keeps the highest score)
                 if keyword not in seen_keywords:
                     seen_keywords.add(keyword)
                     deduplicated_data.append(item)
         processed_data = deduplicated_data
     
-    # 3. 过滤低分词（如果启用）
+    # 3. Filter low-score keywords (if enabled)
     if filter_low_score:
         def check_score(item):
-            """安全地检查分数是否达到阈值"""
+            """Safely check if score meets the threshold"""
             if len(item) <= score_idx:
                 return False
             try:
@@ -639,130 +642,130 @@ def post_process_keywords(
         
         processed_data = [item for item in processed_data if check_score(item)]
     
-    # 注意：这里不再提前执行 top_n 截取
-    # 4. top_n 截取移到所有过滤完成后（见后文）
+    # Note: top_n truncation is no longer done early here
+    # 4. top_n truncation moved to after all filtering is complete (see below)
     
-    # 5. 去除包含英文字母的关键词（如果启用）
+    # 5. Remove keywords containing English letters (if enabled)
     if remove_english:
         filtered_data = []
         for item in processed_data:
             if len(item) > keyword_idx:
                 keyword = item[keyword_idx]
-                # 确保关键词是字符串类型
+                # Ensure keyword is a string type
                 if not isinstance(keyword, str):
-                    continue  # 跳过非字符串类型的关键词
-                # 检查关键词中是否包含英文字母
+                    continue  # Skip non-string keywords
+                # Check if keyword contains English letters
                 if not re.search(r'[a-zA-Z]', keyword):
                     filtered_data.append(item)
         processed_data = filtered_data
     
-    # 6. 过滤停用词（如果启用）
+    # 6. Filter stopwords (if enabled)
     if filter_stopwords and (stopwords_exact_match or stopwords_contain_match):
-        # 加载停用词列表
+        # Load stopword list
         stopwords = load_stopwords(stopwords_file)
         
-        if stopwords:  # 只有在成功加载停用词时才进行过滤
+        if stopwords:  # Only filter when stopwords are successfully loaded
             filtered_data = []
-            filtered_out = []  # 记录被过滤的关键词（用于调试）
-            # logging.info(f"[停用词过滤] 过滤前关键词: {[item[keyword_idx] if len(item) > keyword_idx else '?' for item in processed_data]}")
+            filtered_out = []  # Track filtered keywords (for debugging)
+            # logging.info(f"[Stopword filter] Keywords before filtering: {[item[keyword_idx] if len(item) > keyword_idx else '?' for item in processed_data]}")
             
             for item in processed_data:
                 if len(item) > keyword_idx:
                     keyword = item[keyword_idx]
-                    # 确保关键词是字符串类型
+                    # Ensure keyword is a string type
                     if not isinstance(keyword, str):
-                        # logging.info(f"[停用词过滤] 跳过非字符串关键词: {keyword} (类型: {type(keyword)})")
-                        continue  # 跳过非字符串类型的关键词
+                        # logging.info(f"[Stopword filter] Skipping non-string keyword: {keyword} (type: {type(keyword)})")
+                        continue  # Skip non-string keywords
                     
                     should_filter = False
                     
-                    # 精确匹配：关键词完全等于停用词
+                    # Exact match: keyword exactly equals a stopword
                     if stopwords_exact_match and keyword in stopwords:
-                        # logging.info(f"[停用词过滤] '{keyword}' 匹配停用词（精确匹配）")
+                        # logging.info(f"[Stopword filter] '{keyword}' matched stopword (exact match)")
                         should_filter = True
                     
-                    # 包含匹配：关键词包含停用词
+                    # Contains match: keyword contains a stopword
                     if stopwords_contain_match and not should_filter:
                         for stopword in stopwords:
                             if stopword in keyword:
                                 should_filter = True
-                                # logging.info(f"[停用词过滤] '{keyword}' 包含停用词 '{stopword}'（包含匹配）")
+                                # logging.info(f"[Stopword filter] '{keyword}' contains stopword '{stopword}' (contains match)")
                                 break
                     
-                    # 如果不需要过滤，则保留该关键词
+                    # If not filtered, keep the keyword
                     if not should_filter:
                         filtered_data.append(item)
                     else:
                         filtered_out.append(keyword)
 
-            # 调试输出（可选，取消注释以启用）
-            # logging.info(f"[停用词过滤] 过滤前: {len(processed_data)} 个, 过滤后: {len(filtered_data)} 个, 被过滤: {filtered_out}")
+            # Debug output (optional, uncomment to enable)
+            # logging.info(f"[Stopword filter] Before: {len(processed_data)}, after: {len(filtered_data)}, filtered out: {filtered_out}")
             
             processed_data = filtered_data
     
-    # 7. 过滤时间关键词（如果启用）
+    # 7. Filter time keywords (if enabled)
     if filter_time_keywords:
         filtered_data = []
         for item in processed_data:
             if len(item) > keyword_idx:
                 keyword = item[keyword_idx]
-                # 确保关键词是字符串类型
+                # Ensure keyword is a string type
                 if not isinstance(keyword, str):
-                    continue  # 跳过非字符串类型的关键词
+                    continue  # Skip non-string keywords
                 
-                # 检查是否为时间关键词
+                # Check if it is a time keyword
                 if not is_time_keyword(keyword):
                     filtered_data.append(item)
         
         processed_data = filtered_data
     
-    # 8. 过滤日期关键词（如果启用）
+    # 8. Filter date keywords (if enabled)
     if filter_date_keywords:
         filtered_data = []
-        filtered_out_dates = []  # 记录被过滤的日期关键词
+        filtered_out_dates = []  # Track filtered date keywords
         for item in processed_data:
             if len(item) > keyword_idx:
                 keyword = item[keyword_idx]
-                # 确保关键词是字符串类型
+                # Ensure keyword is a string type
                 if not isinstance(keyword, str):
-                    continue  # 跳过非字符串类型的关键词
+                    continue  # Skip non-string keywords
                 
-                # 检查是否为日期关键词
+                # Check if it is a date keyword
                 if not is_date_keyword(keyword):
                     filtered_data.append(item)
                 else:
                     filtered_out_dates.append(keyword)
         
-        # 调试输出（可选）
+        # Debug output (optional)
         # if filtered_out_dates:
-        #     logging.info(f"[日期过滤] 过滤前: {len(processed_data)} 个, 过滤后: {len(filtered_data)} 个, 被过滤: {filtered_out_dates}")
+        #     logging.info(f"[Date filter] Before: {len(processed_data)}, after: {len(filtered_data)}, filtered out: {filtered_out_dates}")
         
         processed_data = filtered_data
     
-    # 9. 过滤超长关键词（如果启用）
+    # 9. Filter overly long keywords (if enabled)
     if filter_long_keywords and max_keyword_length > 0:
         filtered_data = []
-        filtered_out_long = []  # 记录被过滤的超长关键词
+        filtered_out_long = []  # Track filtered overly long keywords
         for item in processed_data:
             if len(item) > keyword_idx:
                 keyword = item[keyword_idx]
-                # 确保关键词是字符串类型
+                # Ensure keyword is a string type
                 if not isinstance(keyword, str):
-                    continue  # 跳过非字符串类型的关键词
+                    continue  # Skip non-string keywords
                 
-                # 检查关键词长度是否超过最大长度
+                # Check if keyword length exceeds the maximum
                 if len(keyword) <= max_keyword_length:
                     filtered_data.append(item)
                 else:
                     filtered_out_long.append(keyword)
         
-        # 调试输出（可选）
+        # Debug output (optional)
         # if filtered_out_long:
-        #     logging.info(f"[长度过滤] 过滤前: {len(processed_data)} 个, 过滤后: {len(filtered_data)} 个, 被过滤: {filtered_out_long}")
+        #     logging.info(f"[Length filter] Before: {len(processed_data)}, after: {len(filtered_data)}, filtered out: {filtered_out_long}")
         
         processed_data = filtered_data
 
-    # 10. 过滤原文中不存在的关键词（如果启用）
+    # 10. Filter keywords not in the original text (if enabled)
     if filter_not_in_original and original_text:
         processed_data = filter_keywords_not_in_original(
             processed_data, 
@@ -772,24 +775,24 @@ def post_process_keywords(
         )
 
 
-    # ========== 重要：在所有过滤完成后，保存干净的数据用于回填 ==========
-    # 这样回填时不会回填被停用词/时间词/日期词/超长关键词过滤掉的关键词
+    # ========== Important: save clean data for backfilling after all filtering is done ==========
+    # This ensures backfilling won't reintroduce keywords filtered by stopword/time/date/length filters
     clean_sorted_data = [item[:] for item in processed_data]
     
-    # 11. 智能 top_n 处理（所有过滤完成后）
+    # 11. Smart top_n processing (after all filtering is complete)
     if top_n and n > 0:
-        # 先截取前 N 个
+        # First truncate to top N
         if len(processed_data) > n:
             processed_data = processed_data[:n]
         
         current_count = len(processed_data)
         
         if current_count < n and backfill_topn:
-            # 当前数量不足 N 个，需要回填
-            # 计算需要回填的数量
+            # Current count is less than N, backfilling needed
+            # Calculate the number of items to backfill
             needed_count = n - current_count
             
-            # 获取当前已选中的关键词集合（用于去重）
+            # Get the set of currently selected keywords (for deduplication)
             selected_keywords = set()
             for item in processed_data:
                 if len(item) > keyword_idx:
@@ -797,40 +800,40 @@ def post_process_keywords(
                     if isinstance(keyword, str):
                         selected_keywords.add(keyword)
             
-            # 从干净的数据中找回填候选，而不是从原始数据;确保回填的关键词也是经过停用词和时间词过滤的
+            # Find backfill candidates from clean data, not raw data; ensures backfilled keywords also passed stopword/time filters
             backfill_candidates = []
             for item in clean_sorted_data:
                 if len(item) > keyword_idx:
                     keyword = item[keyword_idx]
-                    # 确保是字符串且未被选中
+                    # Ensure it's a string and not already selected
                     if isinstance(keyword, str) and keyword not in selected_keywords:
                         backfill_candidates.append(item)
             
-            # 从候选中选择分数最高的进行回填
+            # Select highest-scoring candidates for backfilling
             backfill_items = backfill_candidates[:needed_count]
             
-            # 将回填的关键词追加到结果末尾
+            # Append backfilled keywords to the end of results
             processed_data.extend(backfill_items)
             
-            # 调试输出
+            # Debug output
             if backfill_items:
                 backfilled_keywords = [item[keyword_idx] for item in backfill_items if len(item) > keyword_idx]
-                logging.info(f"[智能回填] 当前: {current_count} 个, 目标: {n} 个, 回填: {len(backfill_items)} 个 → {backfilled_keywords}")
+                logging.info(f"[Smart backfill] Current: {current_count}, target: {n}, backfilled: {len(backfill_items)} -> {backfilled_keywords}")
         
-        # 最终截取到 N 个（如果回填后超过 N 个，需要截断；正常情况下应该正好是 N 个或少于 N 个）
+        # Final truncation to N items (truncate if backfill exceeds N; normally should be exactly N or fewer)
         processed_data = processed_data[:n]
     
-    # 11. 根据 return_full_info 决定返回格式
+    # 12. Determine return format based on return_full_info
     if return_full_info:
-        # 返回完整信息
+        # Return full info
         return processed_data
     else:
-        # 只返回关键词列表（确保是字符串）
+        # Return keyword list only (ensure strings)
         keywords_list = []
         for item in processed_data:
             if len(item) > keyword_idx:
                 keyword = item[keyword_idx]
-                # 只添加字符串类型的关键词
+                # Only add string-type keywords
                 if isinstance(keyword, str):
                     keywords_list.append(keyword)
         return keywords_list
@@ -838,16 +841,16 @@ def post_process_keywords(
 
 def extract_keywords_from_json(keywords_json, return_raw=False):
     """
-    从 JSON 格式的关键词数据中提取关键词列表
+    Extract keyword list from JSON-formatted keyword data.
     
     Args:
-        keywords_json: JSON 格式的关键词数据（字典）
-        return_raw: 是否返回原始格式（包含分数和理由）
+        keywords_json: JSON-formatted keyword data (dict)
+        return_raw: Whether to return raw format (including score and reason)
         
     Returns:
-        关键词数据列表，格式为 [["词1", 0.90, "理由"], ...] 或 []
+        Keyword data list, format [["word1", 0.90, "reason"], ...] or []
     """
-    # 统一处理返回的关键词部分（兼容中英文键名）
+    # Handle returned keywords (compatible with both Chinese and English key names)
     if '关键词' in keywords_json:
         keywords_data = keywords_json['关键词']
     elif 'keywords' in keywords_json:

@@ -5,75 +5,74 @@ import unicodedata
 
 def remove_time_expressions(text):
     """
-    去除文本中的时间表达式（系统化处理）
+    Remove time expressions from text (systematic processing)
     
-    支持的时间格式：
-    - 标准时间：8:40、08:40:30、8.40、8点40分30秒
-    - 口语时间：8点多、8点半、8点左右、差5分8点
-    - 时间段：早上、上午、中午、下午、晚上、凌晨、夜里
-    - 模糊时间：刚才、现在、马上、立刻、稍后
+    Supported time formats:
+    - Standard time: 8:40, 08:40:30, 8.40, 8点40分30秒
+    - Colloquial time: 8点多, 8点半, 8点左右, 差5分8点
+    - Time periods: 早上, 上午, 中午, 下午, 晚上, 凌晨, 夜里
+    - Fuzzy time: 刚才, 现在, 马上, 立刻, 稍后
     
     Args:
-        text: 待处理的文本
+        text: Text to process
         
     Returns:
-        去除时间表达后的文本
+        Text with time expressions removed
     """
     if not isinstance(text, str):
         text = str(text)
     
-    # ===== 1. 标准时间格式 =====
+    # ===== 1. Standard time formats =====
     
-    # 1.1 冒号分隔的时间：8:40、08:40:30、23:59:59
+    # 1.1 Colon-separated time: 8:40, 08:40:30, 23:59:59
     text = re.sub(r'\d{1,2}:\d{1,2}(:\d{1,2})?', '', text)
     
-    # 1.2 点号分隔的时间：8.40、8.40.30（需要确保不是小数）
-    # 使用前瞻/后顾断言确保不是价格等小数
+    # 1.2 Dot-separated time: 8.40, 8.40.30 (ensure it's not a decimal number)
+    # Use lookahead/lookbehind assertions to avoid matching prices or decimals
     text = re.sub(r'(?<!\d)\d{1,2}\.\d{1,2}(\.\d{1,2})?(?!\d)', '', text)
     
-    # 1.3 中文完整时间：8点40分30秒、8点40分、8点40
-    # 匹配：数字+点+数字+分+数字+秒
+    # 1.3 Chinese full time: 8点40分30秒, 8点40分, 8点40
+    # Match: number+点+number+分+number+秒
     text = re.sub(r'\d+\s*点\s*\d+\s*分\s*\d+\s*秒', '', text)
-    # 匹配：数字+点+数字+分
+    # Match: number+点+number+分
     text = re.sub(r'\d+\s*点\s*\d+\s*分', '', text)
-    # 匹配：数字+点+数字（后面没有单位）
+    # Match: number+点+number (not followed by a unit)
     text = re.sub(r'\d+\s*点\s*\d+(?![分秒])', '', text)
     
-    # 1.4 中文时间：8点、40分、30秒、8时、40分钟
+    # 1.4 Chinese time units: 8点, 40分, 30秒, 8时, 40分钟
     text = re.sub(r'\d+\s*[点时]\s*(?:钟)?', '', text)
     text = re.sub(r'\d+\s*分\s*(?:钟)?', '', text)
     text = re.sub(r'\d+\s*秒\s*(?:钟)?', '', text)
     
-    # 1.5 中文数字时间：八点、四十分、三十秒
+    # 1.5 Chinese numeral time: 八点, 四十分, 三十秒
     chinese_num_pattern = r'[零一二三四五六七八九十百千万亿壹贰叁肆伍陆柒捌玖拾佰仟萬億两]+'
     text = re.sub(chinese_num_pattern + r'\s*[点时]\s*(?:钟)?', '', text)
     text = re.sub(chinese_num_pattern + r'\s*分\s*(?:钟)?', '', text)
     text = re.sub(chinese_num_pattern + r'\s*秒\s*(?:钟)?', '', text)
     
-    # ===== 2. 口语化时间表达 =====
+    # ===== 2. Colloquial time expressions =====
     
-    # 2.1 模糊时间：8点多、8点半、8点左右、8点钟左右
+    # 2.1 Fuzzy time: 8点多, 8点半, 8点左右, 8点钟左右
     text = re.sub(r'\d+\s*[点时]\s*[多半来钟]', '', text)
     text = re.sub(r'\d+\s*[点时]\s*(?:左右|上下)', '', text)
     
-    # 2.2 差几分几点：差5分8点、差一刻9点
+    # 2.2 "minutes to" pattern: 差5分8点, 差一刻9点
     text = re.sub(r'差\s*\d+\s*分\s*\d+\s*[点时]', '', text)
     text = re.sub(r'差\s*一刻\s*\d+\s*[点时]', '', text)
     
-    # 2.3 几点几刻：8点一刻、9点三刻
+    # 2.3 Quarter hour: 8点一刻, 9点三刻
     text = re.sub(r'\d+\s*[点时]\s*[一二三]刻', '', text)
     
-    # ===== 3. 时间段表达 =====
+    # ===== 3. Time period expressions =====
     
-    # 3.1 时间段：早上、上午、中午、下午、晚上、夜里、凌晨、深夜
+    # 3.1 Time periods: 早上, 上午, 中午, 下午, 晚上, 夜里, 凌晨, 深夜
     text = re.sub(r'[早上中下晚夜凌深][上午里晨间夜]', '', text)
     
-    # 3.2 带时间段的完整表达：上午8点、晚上9点半
+    # 3.2 Full expressions with time period: 上午8点, 晚上9点半
     text = re.sub(r'[早上中下晚夜凌深][上午里晨间夜]\s*\d+\s*[点时]', '', text)
     
-    # ===== 4. 模糊时间词 =====
+    # ===== 4. Fuzzy time words =====
     
-    # 刚才、现在、马上、立刻、稍后、待会、一会儿
     fuzzy_time_words = [
         '刚才', '刚刚', '现在', '此刻', '当前', '目前',
         '马上', '立刻', '立即', '立马', '即刻',
@@ -88,53 +87,53 @@ def remove_time_expressions(text):
 
 def remove_date_expressions(text):
     """
-    去除文本中的日期表达式（系统化处理）
+    Remove date expressions from text (systematic processing)
     
-    支持的日期格式：
-    - 标准日期：2024年11月10日、2024-11-10、11/10、11.10
-    - 年月日：2024年、11月、10号、10日
-    - 相对日期：昨天、今天、明天、前天、后天
-    - 周期：第一天、第二周、上个月、去年
+    Supported date formats:
+    - Standard dates: 2024年11月10日, 2024-11-10, 11/10, 11.10
+    - Year/month/day: 2024年, 11月, 10号, 10日
+    - Relative dates: 昨天, 今天, 明天, 前天, 后天
+    - Periods: 第一天, 第二周, 上个月, 去年
     
     Args:
-        text: 待处理的文本
+        text: Text to process
         
     Returns:
-        去除日期表达后的文本
+        Text with date expressions removed
     """
     if not isinstance(text, str):
         text = str(text)
     
-    # ===== 1. 标准日期格式 =====
+    # ===== 1. Standard date formats =====
     
-    # 1.1 完整日期：2024年11月10日、2024-11-10、2024/11/10、2024.11.10
+    # 1.1 Full date: 2024年11月10日, 2024-11-10, 2024/11/10, 2024.11.10
     text = re.sub(r'\d{4}[-/年.]\d{1,2}[-/月.]\d{1,2}[日号]?', '', text)
     
-    # 1.2 月日格式：11月10日、11-10、11/10、11.10
+    # 1.2 Month-day format: 11月10日, 11-10, 11/10, 11.10
     text = re.sub(r'\d{1,2}[-/月.]\d{1,2}[日号]?', '', text)
     
-    # 1.3 单独的年月日号：2024年、11月、10号、10日
+    # 1.3 Standalone year/month/day: 2024年, 11月, 10号, 10日
     text = re.sub(r'\d+\s*[年]', '', text)
     text = re.sub(r'\d+\s*[月]', '', text)
     text = re.sub(r'\d+\s*[日号]', '', text)
     
-    # ===== 2. 中文数字日期 =====
+    # ===== 2. Chinese numeral dates =====
     
     chinese_num_pattern = r'[零一二三四五六七八九十百千万亿壹贰叁肆伍陆柒捌玖拾佰仟萬億两]+'
     
-    # 2.1 中文数字+年月日号
+    # 2.1 Chinese numerals + year/month/day
     text = re.sub(chinese_num_pattern + r'\s*[年]', '', text)
     text = re.sub(chinese_num_pattern + r'\s*[月]', '', text)
     text = re.sub(chinese_num_pattern + r'\s*[日号]', '', text)
     
-    # ===== 3. 相对日期表达 =====
+    # ===== 3. Relative date expressions =====
     
-    # 3.1 昨天、今天、明天、前天、后天、大前天、大后天
+    # 3.1 Yesterday, today, tomorrow, day before yesterday, day after tomorrow, etc.
     relative_days = ['昨天', '今天', '明天', '前天', '后天', '大前天', '大后天', '昨日', '今日', '明日']
     for day in relative_days:
         text = text.replace(day, '')
     
-    # 3.2 上周、本周、下周、上月、本月、下月、去年、今年、明年
+    # 3.2 Last week, this week, next week, last month, this month, next month, last year, this year, next year
     relative_periods = [
         '上周', '本周', '下周', '这周', '上星期', '本星期', '下星期', '这星期',
         '上月', '本月', '下月', '这月', '上个月', '这个月', '下个月',
@@ -143,17 +142,17 @@ def remove_date_expressions(text):
     for period in relative_periods:
         text = text.replace(period, '')
     
-    # ===== 4. 周期表达 =====
+    # ===== 4. Periodic expressions =====
     
-    # 4.1 第X天/周/月/年
+    # 4.1 Nth day/week/month/year
     text = re.sub(r'第' + chinese_num_pattern + r'[天周月年]', '', text)
     text = re.sub(r'第\d+[天周月年]', '', text)
     
-    # 4.2 X天/周/月/年前/后
+    # 4.2 N days/weeks/months/years ago/later
     text = re.sub(chinese_num_pattern + r'[天周月年][前后]', '', text)
     text = re.sub(r'\d+[天周月年][前后]', '', text)
     
-    # 4.3 星期X、周X
+    # 4.3 Day of week (星期X, 周X)
     text = re.sub(r'[星期周][一二三四五六七日天]', '', text)
     text = re.sub(r'礼拜[一二三四五六七日天]', '', text)
     
@@ -162,60 +161,61 @@ def remove_date_expressions(text):
 
 def remove_dates(text):
     """
-    去除文本中的日期和时间表达式（统一入口）
+    Remove date and time expressions from text (unified entry point)
     
-    这是一个兼容性函数，内部调用更细粒度的处理函数。
-    建议直接使用 remove_date_expressions() 和 remove_time_expressions()。
+    This is a compatibility function that internally calls more fine-grained
+    processing functions. Consider using remove_date_expressions() and
+    remove_time_expressions() directly.
     
     Args:
-        text: 待处理的文本
+        text: Text to process
         
     Returns:
-        去除日期和时间后的文本
+        Text with dates and times removed
     """
     if not isinstance(text, str):
         text = str(text)
     
-    # 先去除时间（因为时间可能包含在日期中，如"2024年11月10日8点"）
+    # Remove time first (time may be embedded in dates, e.g. "2024年11月10日8点")
     text = remove_time_expressions(text)
     
-    # 再去除日期
+    # Then remove dates
     text = remove_date_expressions(text)
     
     return text
 
 
-# ===== 以下是原有的其他预处理函数（保持不变）=====
+# ===== Below are other existing preprocessing functions =====
 
 def keep_chinese_only(text, keep_numbers=True, keep_chinese_punctuation=True):
     """
-    只保留中文字符（可选保留数字和中文标点）
+    Keep only Chinese characters (optionally keep numbers and Chinese punctuation)
     
     Args:
-        text: 待处理的文本
-        keep_numbers: 是否保留数字（0-9）
-        keep_chinese_punctuation: 是否保留中文标点符号
+        text: Text to process
+        keep_numbers: Whether to keep digits (0-9)
+        keep_chinese_punctuation: Whether to keep Chinese punctuation marks
         
     Returns:
-        只包含中文的文本
+        Text containing only Chinese characters
     """
     if not isinstance(text, str):
         text = str(text)
     
-    # 定义要保留的字符范围
+    # Define character ranges to keep
     result = []
     
     for char in text:
-        # 1. 保留中文汉字（CJK统一表意文字）
-        if '\u4e00' <= char <= '\u9fff':  # 基本汉字
+        # 1. Keep Chinese characters (CJK Unified Ideographs)
+        if '\u4e00' <= char <= '\u9fff':
             result.append(char)
-        # 2. 保留中文标点符号（如果启用）
+        # 2. Keep Chinese punctuation (if enabled)
         elif keep_chinese_punctuation and char in '，。！？；：""''（）【】《》、…—·':
             result.append(char)
-        # 3. 保留数字（如果启用）
+        # 3. Keep digits (if enabled)
         elif keep_numbers and char.isdigit():
             result.append(char)
-        # 4. 保留空格（用于分隔）
+        # 4. Keep spaces (for separation)
         elif char == ' ':
             result.append(char)
     
@@ -226,54 +226,53 @@ def clean_text(text, remove_english=True, deduplicate_punctuation=True,
                remove_html_entities=True, normalize_whitespace=True,
                remove_control_chars=True):
     """
-    文本预处理主函数
+    Main text preprocessing function
     
     Args:
-        text: 待处理的文本
-        remove_english: 是否去除英文字母（保留数字）
-        deduplicate_punctuation: 是否去除连续重复的标点符号
-        remove_html_entities: 是否去除 HTML 实体
-        normalize_whitespace: 是否规范化空白字符
-        remove_control_chars: 是否去除控制字符
+        text: Text to process
+        remove_english: Whether to remove English letters (keep digits)
+        deduplicate_punctuation: Whether to remove consecutive duplicate punctuation
+        remove_html_entities: Whether to remove HTML entities
+        normalize_whitespace: Whether to normalize whitespace characters
+        remove_control_chars: Whether to remove control characters
         
     Returns:
-        清洗后的文本
+        Cleaned text
     """
     if not isinstance(text, str):
         text = str(text)
     
-    # 1. 去除 HTML 实体（如 &hellip; → ...，&nbsp; → 空格）
+    # 1. Remove HTML entities (e.g. &hellip; -> ..., &nbsp; -> space)
     if remove_html_entities:
         text = html.unescape(text)
-        # 进一步处理常见的 HTML 实体
+        # Further handle common HTML entities
         text = text.replace('&nbsp;', ' ')
         text = text.replace('&quot;', '"')
         text = text.replace('&amp;', '&')
         text = text.replace('&lt;', '<')
         text = text.replace('&gt;', '>')
     
-    # 2. 去除所有英文字母（a-z, A-Z），保留数字
+    # 2. Remove all English letters (a-z, A-Z), keep digits
     if remove_english:
         text = re.sub(r'[a-zA-Z]+', '', text)
     
-    # 3. 去除控制字符（如 \x00-\x1f，但保留常用的换行、制表符）
+    # 3. Remove control characters (e.g. \x00-\x1f, but keep common whitespace)
     if remove_control_chars:
-        # 保留常用空白字符：空格、换行、制表符
+        # Keep common whitespace: space, newline, tab
         text = ''.join(char for char in text 
                       if unicodedata.category(char)[0] != 'C' 
                       or char in ['\n', '\r', '\t', ' '])
     
-    # 4. 去除连续重复的标点符号（!!! → !，... → .）
+    # 4. Deduplicate consecutive punctuation (!!! -> !, ... -> .)
     if deduplicate_punctuation:
-        # 匹配连续重复的标点符号（包括中英文标点）
-        # 标点符号类别：P (Punctuation)
+        # Match consecutive duplicate punctuation (both Chinese and English)
         text = re.sub(r'([!！？?。.，,、；;：:""\"\'\'（）()【】\[\]《》<>…~～@#￥$%^&*_+\-=｜|/\\])\1+', r'\1', text)
     
-    # 5. 规范化空白字符（多个空格/换行合并为一个空格）
+    # 5. Normalize whitespace (merge multiple spaces/newlines into one space)
     if normalize_whitespace:
-        # 将多个连续的空白字符（空格、换行、制表符等）合并为一个空格
+        # Merge multiple consecutive whitespace characters into one space
         text = re.sub(r'\s+', ' ', text)
-        # 去除首尾空白
+        # Strip leading and trailing whitespace
         text = text.strip()
     
     return text
@@ -292,39 +291,39 @@ def preprocess_comment(comment,
                        remove_whitespace_chars_flag=True,
                        max_length=None):
     """
-    评论预处理函数（包含清洗和长度截断）
+    Comment preprocessing function (includes cleaning and length truncation)
     
     Args:
-        comment: 待处理的评论文本
-        remove_english: 是否去除英文字母（当 keep_chinese_only_flag=False 时生效）
-        deduplicate_punctuation: 是否去除连续重复的标点符号
-        remove_html_entities: 是否去除 HTML 实体
-        normalize_whitespace: 是否规范化空白字符
-        remove_control_chars: 是否去除控制字符
-        remove_dates_flag: 是否去除日期表达
-        keep_chinese_only_flag: 是否只保留中文（优先级高于 remove_english）
-        keep_numbers: 是否保留数字（当 keep_chinese_only_flag=True 时生效）
-        keep_chinese_punctuation: 是否保留中文标点（当 keep_chinese_only_flag=True 时生效）
-        remove_whitespace_chars_flag: 是否去除换行符、制表符等空白字符
-        max_length: 最大长度限制（None 表示不限制）
+        comment: Comment text to process
+        remove_english: Whether to remove English letters (effective when keep_chinese_only_flag=False)
+        deduplicate_punctuation: Whether to remove consecutive duplicate punctuation
+        remove_html_entities: Whether to remove HTML entities
+        normalize_whitespace: Whether to normalize whitespace characters
+        remove_control_chars: Whether to remove control characters
+        remove_dates_flag: Whether to remove date expressions
+        keep_chinese_only_flag: Whether to keep only Chinese (takes priority over remove_english)
+        keep_numbers: Whether to keep digits (effective when keep_chinese_only_flag=True)
+        keep_chinese_punctuation: Whether to keep Chinese punctuation (effective when keep_chinese_only_flag=True)
+        remove_whitespace_chars_flag: Whether to remove newlines, tabs, and other whitespace characters
+        max_length: Maximum length limit (None means no limit)
         
     Returns:
-        预处理后的评论文本
+        Preprocessed comment text
     """
-    # 确保输入是字符串
+    # Ensure input is a string
     if not isinstance(comment, str):
         comment = str(comment)
 
-    # 0. 去除换行符、制表符等空白字符（最先处理）
+    # 0. Remove newlines, tabs, and other whitespace characters (process first)
     if remove_whitespace_chars_flag:
         comment = remove_whitespace_chars(comment)
     
     
-    # 1. 去除日期表达（优先处理）
+    # 1. Remove date expressions (process early)
     if remove_dates_flag:
         comment = remove_dates(comment)
     
-    # 2. 只保留中文（如果启用，会覆盖其他语言处理选项）
+    # 2. Keep only Chinese (if enabled, overrides other language processing options)
     if keep_chinese_only_flag:
         comment = keep_chinese_only(
             comment,
@@ -332,7 +331,7 @@ def preprocess_comment(comment,
             keep_chinese_punctuation=keep_chinese_punctuation
         )
     else:
-        # 使用原有的清洗逻辑
+        # Use original cleaning logic
         comment = clean_text(
             comment,
             remove_english=remove_english,
@@ -342,56 +341,56 @@ def preprocess_comment(comment,
             remove_control_chars=remove_control_chars
         )
     
-    # 3. 去除重复标点（如果启用且未使用 keep_chinese_only）
+    # 3. Deduplicate punctuation (if enabled and not using keep_chinese_only)
     if deduplicate_punctuation and not keep_chinese_only_flag:
         comment = re.sub(r'([!！？?。.，,、；;：:""\"\'\'（）()【】\[\]《》<>…~～@#￥$%^&*_+\-=｜|/\\])\1+', r'\1', comment)
     elif deduplicate_punctuation and keep_chinese_only_flag:
-        # 只处理中文标点的重复
+        # Only deduplicate Chinese punctuation
         comment = re.sub(r'([，。！？；：""''（）【】《》、…—·])\1+', r'\1', comment)
     
-    # 4. 规范化空白字符
+    # 4. Normalize whitespace
     if normalize_whitespace:
         comment = re.sub(r'\s+', ' ', comment)
         comment = comment.strip()
     
-    # 5. 截断过长文本（如果指定了最大长度）
+    # 5. Truncate overly long text (if max_length is specified)
     if max_length is not None and len(comment) > max_length:
         comment = comment[:max_length]
     
     return comment
 
 
-# 一些额外的辅助函数（保持不变）
+# Additional helper functions
 
 def remove_whitespace_chars(text):
     """
-    去除文本中的空白字符和换行符
+    Remove whitespace characters and newlines from text
     
-    去除的字符包括：
-    - \n 换行符 (Line Feed)
-    - \r 回车符 (Carriage Return)
-    - \t 制表符 (Tab)
-    - \v 垂直制表符 (Vertical Tab)
-    - \f 换页符 (Form Feed)
-    - \r\n Windows换行 (CRLF)
+    Characters removed:
+    - \\n Line Feed
+    - \\r Carriage Return
+    - \\t Tab
+    - \\v Vertical Tab
+    - \\f Form Feed
+    - \\r\\n Windows newline (CRLF)
     
     Args:
-        text: 待处理的文本
+        text: Text to process
         
     Returns:
-        去除空白字符后的文本
+        Text with whitespace characters removed
     """
     if not isinstance(text, str):
         text = str(text)
     
-    # 定义需要去除的空白字符
+    # Define whitespace characters to remove
     whitespace_chars = [
-        '\r\n',  # Windows换行（CRLF），需要先处理，避免被拆分
-        '\n',    # 换行符 (Line Feed)
-        '\r',    # 回车符 (Carriage Return)
-        '\t',    # 制表符 (Tab)
-        '\v',    # 垂直制表符 (Vertical Tab)
-        '\f',    # 换页符 (Form Feed)
+        '\r\n',  # Windows newline (CRLF), process first to avoid splitting
+        '\n',    # Line Feed
+        '\r',    # Carriage Return
+        '\t',    # Tab
+        '\v',    # Vertical Tab
+        '\f',    # Form Feed
     ]
     
     for char in whitespace_chars:
@@ -401,30 +400,30 @@ def remove_whitespace_chars(text):
 
 
 def remove_urls(text):
-    """去除文本中的 URL 链接"""
-    # 匹配 http/https/ftp 开头的 URL
+    """Remove URL links from text"""
+    # Match URLs starting with http/https/ftp
     text = re.sub(r'https?://\S+|ftp://\S+', '', text)
-    # 匹配 www 开头的 URL
+    # Match URLs starting with www
     text = re.sub(r'www\.\S+', '', text)
     return text
 
 
 def remove_emails(text):
-    """去除文本中的邮箱地址"""
+    """Remove email addresses from text"""
     text = re.sub(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', '', text)
     return text
 
 
 def remove_phone_numbers(text):
-    """去除文本中的手机号码"""
-    # 匹配中国手机号（11位数字）
+    """Remove phone numbers from text"""
+    # Match Chinese mobile numbers (11 digits)
     text = re.sub(r'1[3-9]\d{9}', '', text)
     return text
 
 
 def normalize_numbers(text):
-    """规范化数字表示（将全角数字转为半角）"""
-    # 全角数字转半角
+    """Normalize number representation (convert full-width digits to half-width)"""
+    # Full-width to half-width digits
     full_width = '０１２３４５６７８９'
     half_width = '0123456789'
     trans_table = str.maketrans(full_width, half_width)
@@ -433,34 +432,34 @@ def normalize_numbers(text):
 
 def remove_emojis(text):
     """
-    去除文本中的emoji表情符号
+    Remove emoji characters from text
     
-    包括：
-    - 标准emoji (😀😁😂等)
-    - 表情符号 (☺️♥️等)
-    - 特殊符号 (🔥⭐等)
+    Includes:
+    - Standard emojis (😀😁😂 etc.)
+    - Emoticon symbols (☺️♥️ etc.)
+    - Special symbols (🔥⭐ etc.)
     
     Args:
-        text: 待处理的文本
+        text: Text to process
         
     Returns:
-        去除emoji后的文本
+        Text with emojis removed
     """
     if not isinstance(text, str):
         text = str(text)
     
-    # Emoji Unicode 范围
+    # Emoji Unicode ranges
     emoji_pattern = re.compile(
         "["
-        "\U0001F600-\U0001F64F"  # 表情符号 (Emoticons)
-        "\U0001F300-\U0001F5FF"  # 符号和象形文字 (Symbols & Pictographs)
-        "\U0001F680-\U0001F6FF"  # 交通和地图符号 (Transport & Map Symbols)
-        "\U0001F1E0-\U0001F1FF"  # 旗帜 (Flags)
-        "\U0001F900-\U0001F9FF"  # 补充符号和象形文字 (Supplemental Symbols and Pictographs)
-        "\U0001FA00-\U0001FA6F"  # 扩展符号A (Extended Symbols A)
-        "\U0001FA70-\U0001FAFF"  # 扩展符号B (Extended Symbols B)
-        "\U0001F000-\U0001F02F"  # 麻将牌 (Mahjong Tiles)
-        "\U0001F0A0-\U0001F0FF"  # 扑克牌 (Playing Cards)
+        "\U0001F600-\U0001F64F"  # Emoticons
+        "\U0001F300-\U0001F5FF"  # Symbols & Pictographs
+        "\U0001F680-\U0001F6FF"  # Transport & Map Symbols
+        "\U0001F1E0-\U0001F1FF"  # Flags
+        "\U0001F900-\U0001F9FF"  # Supplemental Symbols and Pictographs
+        "\U0001FA00-\U0001FA6F"  # Extended Symbols A
+        "\U0001FA70-\U0001FAFF"  # Extended Symbols B
+        "\U0001F000-\U0001F02F"  # Mahjong Tiles
+        "\U0001F0A0-\U0001F0FF"  # Playing Cards
         "]+",
         flags=re.UNICODE
     )
@@ -470,57 +469,53 @@ def remove_emojis(text):
 
 def remove_garbled_text(text):
     """
-    去除乱码字符
+    Remove garbled/corrupted characters
     
-    包括：
-    - 不可见字符（零宽字符等）
-    - 特殊控制字符
-    - 异常Unicode字符
-    - 常见乱码模式（如：锟斤拷、烫烫烫等）
+    Includes:
+    - Invisible characters (zero-width characters, etc.)
+    - Special control characters
+    - Abnormal Unicode characters
+    - Common garbled patterns (e.g.: 锟斤拷, 烫烫烫, etc.)
     
     Args:
-        text: 待处理的文本
+        text: Text to process
         
     Returns:
-        去除乱码后的文本
+        Text with garbled characters removed
     """
     if not isinstance(text, str):
         text = str(text)
     
-    # 1. 去除零宽字符（Zero-Width Characters）
-    # 零宽空格、零宽连接符、零宽非连接符等
+    # 1. Remove zero-width characters
     zero_width_chars = [
-        '\u200b',  # 零宽空格 (Zero Width Space)
-        '\u200c',  # 零宽非连接符 (Zero Width Non-Joiner)
-        '\u200d',  # 零宽连接符 (Zero Width Joiner)
-        '\ufeff',  # 零宽非断空格 (Zero Width No-Break Space / BOM)
-        '\u2060',  # 字连接符 (Word Joiner)
+        '\u200b',  # Zero Width Space
+        '\u200c',  # Zero Width Non-Joiner
+        '\u200d',  # Zero Width Joiner
+        '\ufeff',  # Zero Width No-Break Space / BOM
+        '\u2060',  # Word Joiner
     ]
     for char in zero_width_chars:
         text = text.replace(char, '')
     
-    # 2. 去除常见乱码模式
+    # 2. Remove common garbled patterns
     garbled_patterns = [
-        '锟斤拷',  # UTF-8编码问题导致的乱码
-        '烫烫烫',  # 未初始化内存显示
-        '屯屯屯',  # 类似乱码
-        '�',      # Unicode替换字符 (Replacement Character)
+        '锟斤拷',  # UTF-8 encoding issue
+        '烫烫烫',  # Uninitialized memory display
+        '屯屯屯',  # Similar garbled pattern
+        '�',      # Unicode Replacement Character
     ]
     for pattern in garbled_patterns:
         text = text.replace(pattern, '')
     
-    # 3. 去除特殊格式字符（Variation Selectors）
-    # 用于改变前面字符的显示方式
+    # 3. Remove special format characters (Variation Selectors)
     text = re.sub(r'[\uFE00-\uFE0F]', '', text)  # Variation Selectors
     text = re.sub(r'[\U000E0100-\U000E01EF]', '', text)  # Variation Selectors Supplement
     
-    # 4. 去除其他不可见或特殊Unicode字符
-    # 格式控制字符
+    # 4. Remove other invisible or special Unicode characters
     text = re.sub(r'[\u200e\u200f]', '', text)  # Left-to-Right/Right-to-Left Mark
     text = re.sub(r'[\u202a-\u202e]', '', text)  # Directional Formatting
     
-    # 5. 去除私有使用区字符（Private Use Area）
-    # 这些字符通常用于自定义符号，可能显示为乱码
+    # 5. Remove Private Use Area characters (may display as garbled text)
     text = re.sub(r'[\ue000-\uf8ff]', '', text)  # Private Use Area
     text = re.sub(r'[\U000F0000-\U000FFFFD]', '', text)  # Supplementary Private Use Area-A
     text = re.sub(r'[\U00100000-\U0010FFFD]', '', text)  # Supplementary Private Use Area-B
@@ -530,54 +525,54 @@ def remove_garbled_text(text):
 
 def remove_special_symbols(text):
     """
-    去除特殊符号（保留常用标点）
+    Remove special symbols (keep common punctuation)
     
-    去除：
-    - 数学符号 (±×÷≈等)
-    - 货币符号 (€£¥$等，除了常用的￥)
-    - 箭头符号 (→←↑↓等)
-    - 几何图形 (■□●○等)
-    - 音乐符号 (♪♫等)
+    Removes:
+    - Mathematical symbols (±×÷≈ etc.)
+    - Currency symbols (€£¥$ etc., except commonly used ￥)
+    - Arrow symbols (→←↑↓ etc.)
+    - Geometric shapes (■□●○ etc.)
+    - Musical symbols (♪♫ etc.)
     
     Args:
-        text: 待处理的文本
+        text: Text to process
         
     Returns:
-        去除特殊符号后的文本
+        Text with special symbols removed
     """
     if not isinstance(text, str):
         text = str(text)
     
-    # 定义要去除的特殊符号范围
+    # Define special symbol ranges to remove
     special_symbols_pattern = re.compile(
         "["
-        "\u2190-\u21FF"  # 箭头 (Arrows)
-        "\u2200-\u22FF"  # 数学运算符 (Mathematical Operators)
-        "\u2300-\u23FF"  # 杂项技术符号 (Miscellaneous Technical)
-        "\u2500-\u257F"  # 制表符 (Box Drawing)
-        "\u2580-\u259F"  # 方块元素 (Block Elements)
-        "\u25A0-\u25FF"  # 几何图形 (Geometric Shapes)
-        "\u2600-\u26FF"  # 杂项符号 (Miscellaneous Symbols) - 包含部分emoji
-        "\u2700-\u27BF"  # 装饰符号 (Dingbats)
-        "\u2B00-\u2BFF"  # 杂项符号和箭头 (Miscellaneous Symbols and Arrows)
-        "\u20A0-\u20CF"  # 货币符号 (Currency Symbols) - 但保留￥
+        "\u2190-\u21FF"  # Arrows
+        "\u2200-\u22FF"  # Mathematical Operators
+        "\u2300-\u23FF"  # Miscellaneous Technical
+        "\u2500-\u257F"  # Box Drawing
+        "\u2580-\u259F"  # Block Elements
+        "\u25A0-\u25FF"  # Geometric Shapes
+        "\u2600-\u26FF"  # Miscellaneous Symbols (includes some emoji)
+        "\u2700-\u27BF"  # Dingbats
+        "\u2B00-\u2BFF"  # Miscellaneous Symbols and Arrows
+        "\u20A0-\u20CF"  # Currency Symbols (but keep ￥)
         "]+",
         flags=re.UNICODE
     )
     
     text = special_symbols_pattern.sub(r'', text)
     
-    # 额外处理：去除一些常见的特殊符号（不在上述范围内的）
-    text = text.replace('™', '')  # 商标
-    text = text.replace('®', '')  # 注册商标
-    text = text.replace('©', '')  # 版权
-    text = text.replace('§', '')  # 章节符号
-    text = text.replace('¶', '')  # 段落符号
-    text = text.replace('†', '')  # 剑标
-    text = text.replace('‡', '')  # 双剑标
-    text = text.replace('•', '')  # 项目符号
-    text = text.replace('◦', '')  # 空心项目符号
-    text = text.replace('‣', '')  # 三角项目符号
+    # Additional: remove some common special symbols not in the ranges above
+    text = text.replace('™', '')  # Trademark
+    text = text.replace('®', '')  # Registered Trademark
+    text = text.replace('©', '')  # Copyright
+    text = text.replace('§', '')  # Section Sign
+    text = text.replace('¶', '')  # Pilcrow Sign
+    text = text.replace('†', '')  # Dagger
+    text = text.replace('‡', '')  # Double Dagger
+    text = text.replace('•', '')  # Bullet
+    text = text.replace('◦', '')  # White Bullet
+    text = text.replace('‣', '')  # Triangular Bullet
     
     return text
 
@@ -591,22 +586,22 @@ def advanced_preprocess(text,
                        remove_garbled_flag=True,
                        remove_special_symbols_flag=True):
     """
-    高级预处理（可选功能）
+    Advanced preprocessing (optional features)
     
     Args:
-        text: 待处理的文本
-        remove_urls_flag: 是否去除 URL
-        remove_emails_flag: 是否去除邮箱
-        remove_phones_flag: 是否去除手机号
-        normalize_numbers_flag: 是否规范化数字
-        remove_emojis_flag: 是否去除emoji表情
-        remove_garbled_flag: 是否去除乱码字符
-        remove_special_symbols_flag: 是否去除特殊符号
+        text: Text to process
+        remove_urls_flag: Whether to remove URLs
+        remove_emails_flag: Whether to remove email addresses
+        remove_phones_flag: Whether to remove phone numbers
+        normalize_numbers_flag: Whether to normalize digits
+        remove_emojis_flag: Whether to remove emoji characters
+        remove_garbled_flag: Whether to remove garbled characters
+        remove_special_symbols_flag: Whether to remove special symbols
         
     Returns:
-        处理后的文本
+        Processed text
     """
-    # 优先去除乱码和不可见字符
+    # Prioritize removing garbled and invisible characters
     if remove_garbled_flag:
         text = remove_garbled_text(text)
     
@@ -629,4 +624,3 @@ def advanced_preprocess(text,
         text = normalize_numbers(text)
     
     return text
-

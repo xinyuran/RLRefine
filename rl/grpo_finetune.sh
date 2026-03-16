@@ -1,93 +1,93 @@
 #!/bin/bash
 # ============================================================
-# RLRefine GRPO 强化学习脚本
-# 用 RL 精炼 LLM 的思考过程与信息提取能力
+# RLRefine GRPO Reinforcement Learning Script
+# Use RL to refine LLM's reasoning process and information extraction capability
 #
-# ms-swift 版本: 3.11.2+
+# ms-swift version: 3.11.2+
 #
-# 使用方法:
+# Usage:
 #   chmod +x grpo_finetune.sh
 #   ./grpo_finetune.sh
 #
 # ============================================================
-# 训练流程说明:
+# Training Pipeline:
 #
-# 推荐流程: SFT -> DPO -> GRPO
-#   1. 完成 SFT 训练后，运行 merge_lora.sh 合并权重
-#   2. 使用合并后的模型进行 DPO 训练
-#   3. 完成 DPO 训练后，再次运行 merge_lora.sh 合并权重
-#   4. 修改下方 MODEL_PATH 为 DPO 合并后的模型路径
-#   5. 运行 GRPO 训练: ./grpo_finetune.sh
+# Recommended flow: SFT -> DPO -> GRPO
+#   1. After SFT training, run merge_lora.sh to merge weights
+#   2. Use the merged model for DPO training
+#   3. After DPO training, run merge_lora.sh again to merge weights
+#   4. Update MODEL_PATH below to the DPO merged model path
+#   5. Run GRPO training: ./grpo_finetune.sh
 #
-# 注意:
-#   - GRPO 需要 vLLM 进行推理加速
-#   - 需要较大的显存
+# Notes:
+#   - GRPO requires vLLM for inference acceleration
+#   - Requires large GPU memory
 # ============================================================
 
-# ===================== 配置区域 =====================
-# GPU配置 - 指定要使用的GPU编号
+# ===================== Configuration =====================
+# GPU configuration - specify GPU device IDs
 export CUDA_VISIBLE_DEVICES=0,1
-# 每个节点的进程数 (等于GPU数量)
+# Number of processes per node (equal to number of GPUs)
 export NPROC_PER_NODE=2
-# 模型路径 (建议使用 DPO 合并后的模型)
-# 请修改为实际的模型路径
+# Model path (recommended to use DPO merged model)
+# Please update to the actual model path
 MODEL_PATH="./output/dpo_merged_model"
-# 数据集路径 (GRPO格式，只需要 prompt)
+# Dataset path (GRPO format, only prompts needed)
 DATASET_PATH="./data/grpo_prompts.jsonl"
-# 输出目录
+# Output directory
 OUTPUT_DIR="./output/grpo"
-# ===================== 训练参数 =====================
+# ===================== Training Parameters =====================
 NUM_EPOCHS=1
 BATCH_SIZE=2
 GRADIENT_ACCUMULATION=8
 LEARNING_RATE=1.5e-6
 MAX_LENGTH=4096
 MAX_COMPLETION_LENGTH=2048
-# LoRA参数
+# LoRA parameters
 LORA_RANK=8
 LORA_ALPHA=16
-# GRPO特定参数
+# GRPO-specific parameters
 BETA=0.01
 NUM_GENERATIONS=8
 TEMPERATURE=1.9
-# 像函数配置
+# Reward function configuration
 EXTERNAL_PLUGINS="./reward_builder.py"
 REWARD_FUNCS="schema_based_reward"
-# vLLM 推理加速配置
+# vLLM inference acceleration configuration
 USE_VLLM=true
 VLLM_MODE=colocate
 VLLM_MAX_MODEL_LEN=4096
 VLLM_GPU_MEMORY_UTILIZATION=0.5
-# 保存和日志
+# Save and logging
 SAVE_STEPS=50
 EVAL_STEPS=50
 LOGGING_STEPS=50
 
 # ============================================================
 echo "============================================================"
-echo "开始 GRPO 训练"
+echo "Starting GRPO Training"
 echo "============================================================"
-echo "GPU设备: ${CUDA_VISIBLE_DEVICES}"
-echo "进程数: ${NPROC_PER_NODE}"
-echo "模型路径: ${MODEL_PATH}"
-echo "数据集路径: ${DATASET_PATH}"
-echo "输出目录: ${OUTPUT_DIR}"
+echo "GPU devices: ${CUDA_VISIBLE_DEVICES}"
+echo "Processes: ${NPROC_PER_NODE}"
+echo "Model path: ${MODEL_PATH}"
+echo "Dataset path: ${DATASET_PATH}"
+echo "Output directory: ${OUTPUT_DIR}"
 echo "============================================================"
-# 检查模型路径是否存在
+# Check if model path exists
 if [ ! -d "${MODEL_PATH}" ]; then
-    echo "警告: 模型路径不存在: ${MODEL_PATH}"
-    echo "请修改 MODEL_PATH 为实际的模型路径"
+    echo "Warning: Model path does not exist: ${MODEL_PATH}"
+    echo "Please update MODEL_PATH to the actual model path"
     exit 1
 fi
-# 检查数据集路径是否存在
+# Check if dataset path exists
 if [ ! -f "${DATASET_PATH}" ]; then
-    echo "警告: 数据集路径不存在: ${DATASET_PATH}"
-    echo "请修改 DATASET_PATH 为实际的数据集路径"
+    echo "Warning: Dataset path does not exist: ${DATASET_PATH}"
+    echo "Please update DATASET_PATH to the actual dataset path"
     exit 1
 fi
-# 检查输出目录
+# Check output directory
 mkdir -p ${OUTPUT_DIR}
-# 启动训练
+# Start training
 nproc_per_node=${NPROC_PER_NODE} \
 swift rl \
     --model_path ${MODEL_PATH} \

@@ -1,6 +1,10 @@
 def get_keyword_extraction_prompt_3(comment: str) -> tuple:
     """
-    生成关键词提取的 prompt (最终版 V3 - 分离 system prompt 和 user prompt)
+    Generate keyword extraction prompt (final V3 - separate system prompt and user prompt)
+
+    Note: The prompt content is in Chinese as this was designed and tested for
+    Chinese e-commerce review keyword extraction by the author (@xinyuran).
+    English effectiveness has not been fully validated.
     """
     system_prompt = """
 你是一名中文电商评论关键词抽取专家。你的任务是提取**可用于词频统计的原子级关键词**，并输出每个词的拆分逻辑概要与重要性分数。
@@ -30,7 +34,7 @@ def get_keyword_extraction_prompt_3(comment: str) -> tuple:
 
   - 检查否定词处理是否正确
 
-  - 磀查是否所有提取的关键词都能在原文找到
+  - 检查是否所有提取的关键词都能在原文找到
 
   - 检查置信度分数是否合理
 

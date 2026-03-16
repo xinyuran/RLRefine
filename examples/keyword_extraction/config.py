@@ -1,5 +1,5 @@
 """
-关键词提取任务配置
+Keyword extraction task configuration
 """
 import os
 import sys
@@ -16,12 +16,14 @@ if not os.path.exists(ENV_FILE):
 
 
 def get_keyword_config() -> Config:
+    """Get keyword extraction configuration."""
     task = create_keyword_task()
     config = Config.from_schema(task.schema, task, env_file=ENV_FILE)
     return config
 
 
 class KeywordExtractionConfig(Config):
+    """Keyword extraction specific configuration."""
     def __init__(self):
         task = create_keyword_task()
         env_file = os.path.join(os.path.dirname(__file__), ".env")

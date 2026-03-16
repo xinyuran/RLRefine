@@ -1,6 +1,6 @@
-openai>=1.0.0
-tqdm>=4.66.0
+openai>=2.14.0
+tqdm>=4.67.1
 jieba>=0.42.1
 pyyaml>=6.0.0
-ms-swift>=3.11.0
-vllm>=0.6.0
+ms-swift==3.11.2
+vllm>=0.13.0

@@ -1,6 +1,6 @@
 """
-动态奖励函数构建器
-用于 GRPO 训练时构建 Schema 验证的奖励函数
+Dynamic Reward Function Builder
+Builds schema-validated reward functions for GRPO training
 """
 import re
 import json
@@ -18,7 +18,7 @@ except ImportError:
 
 @dataclass
 class RewardConfig:
-    """奖励函数配置"""
+    """Reward function configuration"""
     format_weight: float = 0.2
     thinking_weight: float = 0.1
     quality_weight: float = 0.2
@@ -37,14 +37,14 @@ class RewardConfig:
 
 class SchemaBasedReward(ORM if HAS_SWIFT else object):
     """
-    基于 Schema 的通用奖励函数
+    Schema-based generic reward function
 
-    支持的评估维度：
-    1. 格式检查 (Format): JSON 解析、标签完整性
-    2. 思考质量 (Thinking): 长度、分析性词汇
-    3. Schema 验证 (Quality): 字段类型、必需字段
-    4. 原文对齐 (Alignment): 幻觉检查
-    5. 准确率 (Accuracy): F1 Score
+    Supported evaluation dimensions:
+    1. Format Check: JSON parsing, tag completeness
+    2. Thinking Quality: length, analytical vocabulary
+    3. Schema Validation (Quality): field types, required fields
+    4. Source Alignment: hallucination check
+    5. Accuracy: F1 Score
     """
 
     def __init__(
@@ -61,7 +61,7 @@ class SchemaBasedReward(ORM if HAS_SWIFT else object):
         self.required_fields = self._get_required_fields()
 
     def _get_required_fields(self) -> List[str]:
-        """从 Schema 中提取必需字段"""
+        """Extract required fields from the schema"""
         if not self.schema:
             return []
         return self.schema.get('required', [])
@@ -73,12 +73,12 @@ class SchemaBasedReward(ORM if HAS_SWIFT else object):
         **kwargs
     ) -> List[float]:
         """
-        计算奖励分数
+        Compute reward scores
 
         Args:
-            completions: 模型生成的文本列表
-            solution: 参考答案列表 (Ground Truth)
-            **kwargs: 包含 'prompts' 等信息
+            completions: List of model-generated texts
+            solution: List of reference answers (Ground Truth)
+            **kwargs: Contains 'prompts' and other information
         """
         prompts = kwargs.get('prompts', [None] * len(completions))
         if not solution:
@@ -97,7 +97,7 @@ class SchemaBasedReward(ORM if HAS_SWIFT else object):
         solution: str,
         prompt: str
     ) -> float:
-        """计算单个样本的综合得分"""
+        """Compute composite score for a single sample"""
         score = 0.0
 
         think_content, has_think = self._extract_thinking(completion)
@@ -124,7 +124,7 @@ class SchemaBasedReward(ORM if HAS_SWIFT else object):
         return max(0.0, min(1.0, score))
 
     def _extract_thinking(self, completion: str) -> tuple:
-        """提取思考过程"""
+        """Extract thinking process"""
         tag = self.config.thinking_tag
         think_content = ""
         has_think = False
@@ -145,7 +145,7 @@ class SchemaBasedReward(ORM if HAS_SWIFT else object):
         return think_content, has_think
 
     def _evaluate_thinking(self, think_content: str, has_think: bool) -> float:
-        """评估思考质量"""
+        """Evaluate thinking quality"""
         score = 0.0
         weight = self.config.thinking_weight
 
@@ -162,7 +162,7 @@ class SchemaBasedReward(ORM if HAS_SWIFT else object):
         return score
 
     def _parse_json(self, completion: str, has_think: bool) -> tuple:
-        """解析 JSON"""
+        """Parse JSON"""
         json_text = completion
         if has_think:
             tag = self.config.thinking_tag
@@ -181,7 +181,7 @@ class SchemaBasedReward(ORM if HAS_SWIFT else object):
         return None, False
 
     def _evaluate_format(self, valid_json: bool, parsed_data: Dict) -> float:
-        """评估格式"""
+        """Evaluate format"""
         score = 0.0
         weight = self.config.format_weight
 
@@ -193,7 +193,7 @@ class SchemaBasedReward(ORM if HAS_SWIFT else object):
         return score
 
     def _evaluate_quality(self, parsed_data: Dict) -> float:
-        """评估数据质量（基于 Schema）"""
+        """Evaluate data quality (schema-based)"""
         score = 0.0
         weight = self.config.quality_weight
 
@@ -231,7 +231,7 @@ class SchemaBasedReward(ORM if HAS_SWIFT else object):
         return score
 
     def _validate_keyword_item(self, item: Any) -> bool:
-        """验证关键词项格式"""
+        """Validate keyword item format"""
         if not isinstance(item, list) or len(item) != 3:
             return False
 
@@ -249,7 +249,7 @@ class SchemaBasedReward(ORM if HAS_SWIFT else object):
         return True
 
     def _check_hallucination(self, parsed_data: Dict, prompt: str) -> float:
-        """检查幻觉（关键词是否在原文中）"""
+        """Check hallucination (whether keywords appear in source text)"""
         penalty = 0.0
 
         source_text = self._extract_source_text(prompt)
@@ -264,7 +264,7 @@ class SchemaBasedReward(ORM if HAS_SWIFT else object):
         return min(penalty, self.config.max_hallucination_penalty)
 
     def _extract_source_text(self, prompt: str) -> str:
-        """从 Prompt 中提取原文"""
+        """Extract source text from the prompt"""
         if not prompt:
             return ""
 
@@ -282,7 +282,7 @@ class SchemaBasedReward(ORM if HAS_SWIFT else object):
         return prompt
 
     def _default_extract_keywords(self, parsed_data: Dict) -> List[str]:
-        """默认的关键词提取方法"""
+        """Default keyword extraction method"""
         keywords = []
 
         if 'keywords' in parsed_data and isinstance(parsed_data['keywords'], list):
@@ -295,7 +295,7 @@ class SchemaBasedReward(ORM if HAS_SWIFT else object):
         return keywords
 
     def _compute_f1(self, parsed_data: Dict, solution: str) -> float:
-        """计算 F1 分数"""
+        """Compute F1 score"""
         pred_keywords = self._extract_keywords_func(parsed_data)
         gold_keywords = self._parse_solution(solution)
 
@@ -317,7 +317,7 @@ class SchemaBasedReward(ORM if HAS_SWIFT else object):
         return 0.0
 
     def _parse_solution(self, solution: str) -> List[str]:
-        """解析参考答案"""
+        """Parse reference answer"""
         keywords = []
         try:
             if isinstance(solution, str):
@@ -330,7 +330,7 @@ class SchemaBasedReward(ORM if HAS_SWIFT else object):
         return keywords
 
     def _has_valid_content(self, parsed_data: Dict) -> bool:
-        """检查是否有有效内容"""
+        """Check whether the data has valid content"""
         if not parsed_data:
             return False
 
@@ -345,23 +345,23 @@ class SchemaBasedReward(ORM if HAS_SWIFT else object):
 
 
 class RewardBuilder:
-    """奖励函数构建器"""
+    """Reward function builder"""
 
     _registry: Dict[str, type] = {}
 
     @classmethod
     def register(cls, name: str, reward_class: type) -> None:
-        """注册奖励函数"""
+        """Register a reward function"""
         cls._registry[name] = reward_class
 
     @classmethod
     def get(cls, name: str) -> Optional[type]:
-        """获取奖励函数类"""
+        """Get a reward function class"""
         return cls._registry.get(name)
 
     @classmethod
     def list_available(cls) -> List[str]:
-        """列出所有可用的奖励函数"""
+        """List all available reward functions"""
         return list(cls._registry.keys())
 
     @classmethod
@@ -372,7 +372,7 @@ class RewardBuilder:
         config: RewardConfig = None,
         **kwargs
     ) -> SchemaBasedReward:
-        """创建奖励函数实例"""
+        """Create a reward function instance"""
         if name in cls._registry:
             return cls._registry[name](schema=schema, config=config, **kwargs)
 
@@ -380,7 +380,7 @@ class RewardBuilder:
 
     @classmethod
     def create_keyword_reward(cls) -> SchemaBasedReward:
-        """创建关键词提取专用奖励函数"""
+        """Create a keyword extraction reward function"""
         config = RewardConfig(
             format_weight=0.2,
             thinking_weight=0.1,
@@ -399,7 +399,7 @@ class RewardBuilder:
                     "type": "array",
                     "items": {
                         "type": "array",
-                        "description": "[分类, 关键词, 置信度]"
+                        "description": "[category, keyword, confidence]"
                     }
                 }
             },
@@ -410,7 +410,7 @@ class RewardBuilder:
 
     @classmethod
     def create_sentiment_reward(cls) -> SchemaBasedReward:
-        """创建情感分析专用奖励函数"""
+        """Create a sentiment analysis reward function"""
         config = RewardConfig(
             format_weight=0.3,
             thinking_weight=0.1,
@@ -434,7 +434,7 @@ class RewardBuilder:
 
     @classmethod
     def create_entity_reward(cls) -> SchemaBasedReward:
-        """创建实体提取专用奖励函数"""
+        """Create an entity extraction reward function"""
         config = RewardConfig(
             format_weight=0.25,
             thinking_weight=0.1,
@@ -469,7 +469,7 @@ class RewardBuilder:
 if HAS_SWIFT:
     if isinstance(orms, dict):
         orms['schema_based_reward'] = SchemaBasedReward
-        print("[reward_builder.py] 已注册奖励函数: schema_based_reward")
+        print("[reward_builder.py] Registered reward function: schema_based_reward")
 
 RewardBuilder.register('default', SchemaBasedReward)
 RewardBuilder.register('keyword', SchemaBasedReward)
@@ -491,4 +491,4 @@ if __name__ == "__main__":
 
     for i, comp in enumerate(test_cases):
         r = reward_func([comp], [mock_solution], prompts=[mock_prompt])[0]
-        print(f"案例 {i+1} 得分: {r:.4f}")
+        print(f"Case {i+1} score: {r:.4f}")

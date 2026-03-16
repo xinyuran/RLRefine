@@ -1,6 +1,6 @@
 """
-动态 Prompt 生成器
-支持基于 Schema 自动生成 System Prompt 和 User Prompt
+Dynamic Prompt generator
+Supports Schema-based automatic generation of System Prompt and User Prompt
 """
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any, Callable
@@ -9,7 +9,7 @@ from core.schema import TaskSchema, FieldDefinition, FieldType, ExtractionTask
 
 @dataclass
 class PromptTemplate:
-    """Prompt 模板"""
+    """Prompt template"""
     name: str
     system_template: str
     user_template: str
@@ -22,7 +22,7 @@ class PromptTemplate:
 
 
 class PromptBuilder:
-    """动态 Prompt 构建器"""
+    """Dynamic Prompt builder"""
 
     DEFAULT_SYSTEM_TEMPLATE = """你是一个专业的结构化数据提取专家。
 你的任务是从用户提供的文本中提取结构化信息，并严格按照指定的 JSON Schema 格式输出。
@@ -91,7 +91,7 @@ class PromptBuilder:
         self._default_rules = self._build_default_rules()
 
     def _build_default_rules(self) -> List[str]:
-        """构建默认规则"""
+        """Build default rules"""
         return [
             "确保提取的信息准确反映原文内容",
             "如果某字段无法从文本中提取，使用 null 或空值",
@@ -99,7 +99,7 @@ class PromptBuilder:
         ]
 
     def _generate_field_rules(self, schema: TaskSchema) -> List[str]:
-        """根据 Schema 生成字段规则"""
+        """Generate field rules from Schema"""
         rules = []
 
         for field_def in schema.fields:
@@ -135,7 +135,7 @@ class PromptBuilder:
         return rules
 
     def _format_rules(self, schema: TaskSchema, custom_rules: List[str] = None) -> str:
-        """格式化规则文本"""
+        """Format rules text"""
         all_rules = self._default_rules.copy()
 
         field_rules = self._generate_field_rules(schema)
@@ -158,16 +158,16 @@ class PromptBuilder:
         short_text_threshold: int = 10
     ) -> tuple:
         """
-        构建 Prompt
+        Build Prompt
 
         Args:
-            input_text: 输入文本
-            enable_thinking: 是否启用思考模式
-            is_short_text: 是否为短文本
-            short_text_threshold: 短文本阈值
+            input_text: Input text
+            enable_thinking: Whether to enable thinking mode
+            is_short_text: Whether the text is short
+            short_text_threshold: Short text threshold
 
         Returns:
-            (system_prompt, user_prompt) 元组
+            (system_prompt, user_prompt) tuple
         """
         if self.custom_prompt_generator:
             return self.custom_prompt_generator(input_text, self.task)
@@ -214,7 +214,7 @@ class PromptBuilder:
         enable_thinking: bool = None,
         is_short_text: bool = False
     ) -> tuple:
-        """从模板构建 Prompt"""
+        """Build Prompt from template"""
         if self.task:
             schema = self.task.schema
             schema_json = schema.to_json_schema_string() if schema else "{}"
@@ -251,17 +251,17 @@ class PromptBuilder:
         return system_prompt, user_prompt
 
     def build(self, input_text: str, task: ExtractionTask = None, **kwargs) -> tuple:
-        """build 是 build_prompt 的别名方法"""
+        """build is an alias for build_prompt"""
         return self.build_prompt(input_text, **kwargs)
 
     @classmethod
     def from_task(cls, task: ExtractionTask) -> 'PromptBuilder':
-        """从任务创建 Prompt 构建器"""
+        """Create Prompt builder from task"""
         return cls(task=task)
 
     @classmethod
     def create_keyword_extraction_builder(cls) -> 'PromptBuilder':
-        """创建关键词提取专用的 Prompt 构建器（使用原始项目 prompt_template_3）"""
+        """Create keyword extraction Prompt builder (using project's prompt_template_3)"""
         from .prompt_template_3 import get_keyword_extraction_prompt_3
 
         def custom_prompt_generator(input_text: str, task) -> tuple:
@@ -271,7 +271,7 @@ class PromptBuilder:
 
     @classmethod
     def create_sentiment_analysis_builder(cls) -> 'PromptBuilder':
-        """创建情感分析专用的 Prompt 构建器"""
+        """Create sentiment analysis Prompt builder"""
         template = PromptTemplate(
             name="sentiment_analysis",
             system_template="""你是专业的文本情感分析专家。
@@ -306,7 +306,7 @@ class PromptBuilder:
 
     @classmethod
     def create_entity_extraction_builder(cls) -> 'PromptBuilder':
-        """创建实体提取专用的 Prompt 构建器"""
+        """Create entity extraction Prompt builder"""
         template = PromptTemplate(
             name="entity_extraction",
             system_template="""你是专业的命名实体识别专家。

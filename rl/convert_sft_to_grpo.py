@@ -1,8 +1,8 @@
 """
-SFT 到 GRPO 数据格式转换工具
-将 SFT 格式的数据转换为 GRPO 格式（只需要 prompt，不需要 response)
+SFT to GRPO Data Format Conversion Tool
+Converts SFT-format data to GRPO format (only prompts needed, no responses)
 
-使用方法:
+Usage:
     python convert_sft_to_grpo.py --input_file sft_data.jsonl --output_file grpo_data.jsonl
 """
 
@@ -20,11 +20,11 @@ def convert_sft_to_grpo(
     thinking_tag: str = "think",
     max_samples: int = None
 ) -> int:
-    print(f"\n读取 SFT 数据: {input_file}")
+    print(f"\nReading SFT data: {input_file}")
     all_samples = []
 
     with open(input_file, 'r', encoding='utf-8') as f:
-        for line in tqdm(f, desc="读取 SFT 数据"):
+        for line in tqdm(f, desc="Reading SFT data"):
             line = line.strip()
             if not line:
                 continue
@@ -38,12 +38,12 @@ def convert_sft_to_grpo(
         all_samples = all_samples[:max_samples]
 
     converted_samples = []
-    for sample in tqdm(all_samples, desc="转换数据"):
+    for sample in tqdm(all_samples, desc="Converting data"):
         converted = convert_single_sample(sample, enable_thinking, thinking_tag)
         if converted:
             converted_samples.append(converted)
 
-    print(f"\n写入 GRPO 数据: {output_file}")
+    print(f"\nWriting GRPO data: {output_file}")
     output_dir = os.path.dirname(output_file)
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
@@ -52,7 +52,7 @@ def convert_sft_to_grpo(
         for sample in converted_samples:
             f.write(json.dumps(sample, ensure_ascii=False) + '\n')
 
-    print(f"转换完成! 共 {len(converted_samples)} 条数据")
+    print(f"Conversion complete! Total {len(converted_samples)} samples")
     return len(converted_samples)
 
 
@@ -92,15 +92,15 @@ def convert_single_sample(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="SFT 到 GRPO 数据格式转换")
-    parser.add_argument("--input_file", type=str, required=True, help="SFT 格式的输入文件")
-    parser.add_argument("--output_file", type=str, required=True, help="GRPO 格式的输出文件")
-    parser.add_argument("--enable_thinking", action="store_true", default=True, help="是否启用思考过程")
-    parser.add_argument("--thinking_tag", type=str, default="think", help="思考标签名称")
-    parser.add_argument("--max_samples", type=int, default=None, help="最大处理样本数")
+    parser = argparse.ArgumentParser(description="SFT to GRPO data format conversion")
+    parser.add_argument("--input_file", type=str, required=True, help="Input file in SFT format")
+    parser.add_argument("--output_file", type=str, required=True, help="Output file in GRPO format")
+    parser.add_argument("--enable_thinking", action="store_true", default=True, help="Whether to enable thinking process")
+    parser.add_argument("--thinking_tag", type=str, default="think", help="Thinking tag name")
+    parser.add_argument("--max_samples", type=int, default=None, help="Maximum number of samples to process")
     args = parser.parse_args()
 
-    print("SFT -> GRPO 转换工具")
+    print("SFT -> GRPO Conversion Tool")
     print("=" * 50)
 
     convert_sft_to_grpo(

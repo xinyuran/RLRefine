@@ -1,12 +1,16 @@
 def get_keyword_extraction_prompt_simple(comment: str) -> tuple:
     """
-    生成精简版关键词提取的 prompt（用于短评）
+    Generate simplified keyword extraction prompt (for short reviews)
+
+    Note: The prompt content is in Chinese as this was designed and tested for
+    Chinese e-commerce review keyword extraction by the author (@xinyuran).
+    English effectiveness has not been fully validated.
 
     Args:
-        comment: 待处理的评论文本
+        comment: Input review text
 
     Returns:
-        (system_prompt, user_prompt) 元组
+        (system_prompt, user_prompt) tuple
     """
     system_prompt = """你是一名中文电商评论关键词抽取专家。当前评论长度在 10 字以内，属于"短评"。
 
