@@ -43,7 +43,7 @@ class Config:
         self.temperature = 0.0
         self.max_retries = 3
         self.seed = 42
-        self.response_format = {"type": "json_object"}
+        self.response_format = None
 
         self.frequency_penalty = 0.3
         self.repetition_penalty = 1.1
@@ -57,9 +57,6 @@ class Config:
         self.enable_fallback = True
         self.fallback_method = "tfidf"
         self.fallback_top_k = 8
-
-        self.enable_thinking = False
-        self.thinking_tag = "think"
 
         self.enable_post_process = True
         self.post_process_top_n = 8
@@ -84,10 +81,6 @@ class Config:
                 if hasattr(self, key):
                     setattr(self, key, value)
 
-        if hasattr(self.task, 'enable_thinking'):
-            self.enable_thinking = self.task.enable_thinking
-        if hasattr(self.task, 'thinking_tag'):
-            self.thinking_tag = self.task.thinking_tag
 
     @classmethod
     def from_schema(cls, schema: TaskSchema, task: ExtractionTask = None, env_file: str = None) -> 'Config':
@@ -143,8 +136,6 @@ class Config:
             'enable_fallback': self.enable_fallback,
             'fallback_method': self.fallback_method,
             'fallback_top_k': self.fallback_top_k,
-            'enable_thinking': self.enable_thinking,
-            'thinking_tag': self.thinking_tag,
             'enable_post_process': self.enable_post_process,
             'post_process_top_n': self.post_process_top_n,
             'post_process_return_full_info': self.post_process_return_full_info,

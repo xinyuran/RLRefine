@@ -241,8 +241,6 @@ class ExtractionTask:
         domain: str = "general",
         custom_prompt_template: Optional[str] = None,
         custom_rules: Optional[List[str]] = None,
-        enable_thinking: bool = False,
-        thinking_tag: str = "think"
     ):
         self.schema = schema
         self.task_type = task_type
@@ -250,8 +248,6 @@ class ExtractionTask:
         self.domain = domain
         self.custom_prompt_template = custom_prompt_template
         self.custom_rules = custom_rules or []
-        self.enable_thinking = enable_thinking
-        self.thinking_tag = thinking_tag
 
     def get_task_info(self) -> Dict[str, Any]:
         """Get task information"""
@@ -262,7 +258,6 @@ class ExtractionTask:
             "language": self.language,
             "domain": self.domain,
             "schema": self.schema.to_json_schema(),
-            "enable_thinking": self.enable_thinking
         }
 
 

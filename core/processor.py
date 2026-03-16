@@ -77,7 +77,7 @@ class RLRefineProcessor:
     def _get_prompts(self, text: str) -> tuple:
         """Get System and User Prompt"""
         if self.prompt_builder:
-            return self.prompt_builder.build(text, enable_thinking=self.config.enable_thinking)
+            return self.prompt_builder.build(text)
 
         if len(text.strip()) < self.config.short_text_len:
             return self._build_simple_prompt(text)
@@ -121,7 +121,7 @@ class RLRefineProcessor:
         return system_prompt, user_prompt
 
     def _build_request_params(self, system_prompt: str, user_prompt: str, use_penalty: bool = False, seed_offset: int = 0) -> dict:
-        """Build LLM request parameters, handle Thinking mode and response_format compatibility"""
+        """Build LLM request parameters"""
         params = {
             "model": self.config.model_name,
             "messages": [
@@ -133,11 +133,7 @@ class RLRefineProcessor:
             "seed": self.config.seed + seed_offset
         }
 
-        # Thinking mode is mutually exclusive with response_format=json_object:
-        # When enable_thinking=True, the Prompt requires the model to first output <tag>...</tag> thinking process,
-        # which conflicts with json_object mode (json_object forces pure JSON output),
-        # so response_format is not set in Thinking mode.
-        if not self.config.enable_thinking and self.config.response_format:
+        if self.config.response_format:
             params["response_format"] = self.config.response_format
 
         if use_penalty:
@@ -178,16 +174,6 @@ class RLRefineProcessor:
             logging.debug(f"Detailed traceback:\n{traceback.format_exc()}")
             return None
 
-    def _extract_json_from_thinking(self, response: str) -> str:
-        """Extract JSON from Thinking mode response"""
-        if not self.config.enable_thinking:
-            return response
-
-        tag = self.config.thinking_tag
-        pattern = rf'<{re.escape(tag)}>.*?</{re.escape(tag)}>'
-        cleaned = re.sub(pattern, '', response, flags=re.DOTALL).strip()
-        return cleaned if cleaned else response
-
     def _parse_response(self, response: str) -> Optional[Dict]:
         """
         Parse LLM response, validate against Schema's required fields.
@@ -195,8 +181,6 @@ class RLRefineProcessor:
         """
         if not response:
             return None
-
-        response = self._extract_json_from_thinking(response)
 
         if response.startswith("```json"):
             response = response.replace("```json", "").replace("```", "").strip()

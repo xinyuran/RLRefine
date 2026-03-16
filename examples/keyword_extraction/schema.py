@@ -48,8 +48,6 @@ def create_keyword_task() -> ExtractionTask:
         task_type="extraction",
         language="zh",
         domain="ecommerce",
-        enable_thinking=False,
-        thinking_tag="think",
         custom_rules=[
             # Rules in Chinese for Chinese e-commerce keyword extraction
             "优先提取产品属性词（如：屏幕、电池、材质）",  # Prioritize product attribute words (e.g., screen, battery, material)

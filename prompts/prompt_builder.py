@@ -13,8 +13,6 @@ class PromptTemplate:
     name: str
     system_template: str
     user_template: str
-    thinking_system_template: Optional[str] = None
-    thinking_user_template: Optional[str] = None
     short_text_system_template: Optional[str] = None
     short_text_user_template: Optional[str] = None
     custom_rules: List[str] = field(default_factory=list)
@@ -33,21 +31,6 @@ class PromptBuilder:
 3. 不要添加任何额外的说明文字
 4. 确保所有必需字段都已填写"""
 
-    DEFAULT_THINKING_SYSTEM_TEMPLATE = """你是一个专业的结构化数据提取专家。
-你的任务是从用户提供的文本中提取结构化信息。
-
-## 思考过程
-在输出最终结果前，请先在 <{thinking_tag}> 标签中展示你的分析过程：
-1. 理解文本的主要内容和结构
-2. 识别需要提取的关键信息
-3. 将信息映射到 Schema 定义的字段
-
-## 输出要求
-1. 先输出思考过程（在 <{thinking_tag}> 标签内）
-2. 然后输出 JSON 格式的结果
-3. 严格遵循 Schema 定义
-4. 确保所有必需字段都已填写"""
-
     DEFAULT_USER_TEMPLATE = """## JSON Schema
 ```json
 {schema_json}
@@ -60,19 +43,6 @@ class PromptBuilder:
 {rules}
 
 请根据上述 Schema 和规则，从文本中提取结构化信息。直接输出 JSON 结果。"""
-
-    DEFAULT_THINKING_USER_TEMPLATE = """## JSON Schema
-```json
-{schema_json}
-```
-
-## 待处理文本
-{input_text}
-
-## 提取规则
-{rules}
-
-请先在 <{thinking_tag}> 标签中分析文本，然后输出 JSON 格式的提取结果。"""
 
     SHORT_TEXT_SYSTEM_TEMPLATE = """你是结构化数据提取专家。直接输出符合以下 Schema 的 JSON：
 {schema_json}"""
@@ -153,7 +123,6 @@ class PromptBuilder:
     def build_prompt(
         self,
         input_text: str,
-        enable_thinking: bool = None,
         is_short_text: bool = False,
         short_text_threshold: int = 10
     ) -> tuple:
@@ -162,7 +131,6 @@ class PromptBuilder:
 
         Args:
             input_text: Input text
-            enable_thinking: Whether to enable thinking mode
             is_short_text: Whether the text is short
             short_text_threshold: Short text threshold
 
@@ -173,7 +141,7 @@ class PromptBuilder:
             return self.custom_prompt_generator(input_text, self.task)
 
         if self.template:
-            return self._build_from_template(input_text, enable_thinking, is_short_text)
+            return self._build_from_template(input_text, is_short_text)
 
         schema = self.task.schema if self.task else None
         schema_json = schema.to_json_schema_string() if schema else "{}"
@@ -185,33 +153,18 @@ class PromptBuilder:
             user_prompt = self.SHORT_TEXT_USER_TEMPLATE.format(input_text=input_text)
             return system_prompt, user_prompt
 
-        if enable_thinking is None:
-            enable_thinking = self.task.enable_thinking if self.task else False
-
-        thinking_tag = self.task.thinking_tag if self.task else "think"
-
-        if enable_thinking:
-            system_prompt = self.DEFAULT_THINKING_SYSTEM_TEMPLATE.format(thinking_tag=thinking_tag)
-            user_prompt = self.DEFAULT_THINKING_USER_TEMPLATE.format(
-                schema_json=schema_json,
-                input_text=input_text,
-                rules=rules,
-                thinking_tag=thinking_tag
-            )
-        else:
-            system_prompt = self.DEFAULT_SYSTEM_TEMPLATE
-            user_prompt = self.DEFAULT_USER_TEMPLATE.format(
-                schema_json=schema_json,
-                input_text=input_text,
-                rules=rules
-            )
+        system_prompt = self.DEFAULT_SYSTEM_TEMPLATE
+        user_prompt = self.DEFAULT_USER_TEMPLATE.format(
+            schema_json=schema_json,
+            input_text=input_text,
+            rules=rules
+        )
 
         return system_prompt, user_prompt
 
     def _build_from_template(
         self,
         input_text: str,
-        enable_thinking: bool = None,
         is_short_text: bool = False
     ) -> tuple:
         """Build Prompt from template"""
@@ -220,26 +173,13 @@ class PromptBuilder:
             schema_json = schema.to_json_schema_string() if schema else "{}"
             custom_rules = self.task.custom_rules if self.task.custom_rules else []
             rules = self._format_rules(schema, custom_rules) if schema else ""
-            thinking_tag = self.task.thinking_tag if self.task else "think"
-            if enable_thinking is None:
-                enable_thinking = self.task.enable_thinking if self.task else False
         else:
             schema_json = "{}"
             rules = ""
-            thinking_tag = "think"
-            enable_thinking = False
 
         if is_short_text and self.template.short_text_system_template:
             system_prompt = self.template.short_text_system_template.format(schema_json=schema_json)
             user_prompt = self.template.short_text_user_template.format(input_text=input_text)
-        elif enable_thinking and self.template.thinking_system_template:
-            system_prompt = self.template.thinking_system_template.format(thinking_tag=thinking_tag)
-            user_prompt = self.template.thinking_user_template.format(
-                schema_json=schema_json,
-                input_text=input_text,
-                rules=rules,
-                thinking_tag=thinking_tag
-            )
         else:
             system_prompt = self.template.system_template
             user_prompt = self.template.user_template.format(
