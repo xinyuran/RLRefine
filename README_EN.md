@@ -131,9 +131,6 @@ pip install -r requirements.txt
 pip install python-dotenv
 ```
 
-> **Inference only** requires `openai`, `tqdm`, `jieba` — skip `ms-swift` and `vllm`.
-> **RL training** additionally requires `ms-swift` and `vllm`.
-
 ---
 
 ## Architecture Overview
@@ -144,7 +141,7 @@ RLRefine consists of two independent modules:
 |---|---|---|
 | **Purpose** | Define Schema, use LLM for structured extraction | Improve model reasoning and extraction via RL |
 | **Cost** | Low — define Schema + deploy vLLM | High — requires GPU training environment |
-| **Dependencies** | `openai`, `tqdm`, `jieba` | `ms-swift`, `vllm` |
+| **Dependencies** | `openai`, `tqdm`, `jieba`, `vllm` | `ms-swift`, `vllm` |
 | **Required** | Yes | No (optional enhancement) |
 
 **Schema is the core of the framework** — defined once, shared by inference and training:

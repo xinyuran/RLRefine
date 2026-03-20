@@ -148,9 +148,6 @@ pip install -r requirements.txt
 pip install python-dotenv
 ```
 
-> **仅推理** 只需要 `openai`、`tqdm`、`jieba`，可跳过 `ms-swift` 和 `vllm` 的安装。
-> **RL 训练** 需要额外安装 `ms-swift` 和 `vllm`。
-
 ---
 
 ## 架构总览
@@ -161,7 +158,7 @@ RLRefine 由两个独立模块组成：
 |---|---|---|
 | **用途** | 定义 Schema，直接用 LLM 做结构化提取 | 通过 RL 训练提升模型的推理和提取质量 |
 | **使用成本** | 低——定义 Schema + 部署 vLLM | 高——需要 GPU 训练环境 |
-| **依赖** | `openai`、`tqdm`、`jieba` | `ms-swift`、`vllm` |
+| **依赖** | `openai`、`tqdm`、`jieba`、`vllm` | `ms-swift` |
 | **是否必需** | 是 | 否（可选增强） |
 
 **Schema 是整个框架的核心**——定义一次，推理和训练共同使用：
