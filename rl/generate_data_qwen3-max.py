@@ -19,8 +19,8 @@ import pandas as pd
 from openai import OpenAI
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from prompt_template_3 import get_keyword_extraction_prompt_3
-from preprocess import preprocess_comment, advanced_preprocess
+from prompts.prompt_template_3 import get_keyword_extraction_prompt_3
+from core.preprocess import preprocess_comment, advanced_preprocess
 
 # ===================== Configuration =====================
 client = OpenAI(
