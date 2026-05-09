@@ -9,8 +9,6 @@ __pycache__/
 # 忽略 ignore_files 文件夹下的所有文件和子文件夹
 ignore_files/
 
-*.log
-
 # Jupyter Notebook
 .ipynb_checkpoints/
 *.ipynb_checkpoints
@@ -92,18 +90,31 @@ Pipfile.lock
 # Logs
 logs/*.log
 !logs/.gitkeep
+*.log
 
 # Project specific
 .pyf
 
-# Markdown files - ignore all except README files
+# RL 训练数据（体量大，不上传）
+rl/data/
+
+# RL 训练日志（含私有路径信息，不上传）
+rl/train_logs/
+
+# RL 训练输出（模型权重，体量极大）
+rl/output/
+output/
+checkpoint-924-merged/
+
+# Markdown files - ignore all except specific files
 *.md
 !README.md
+!README_CN.md
 !README_EN.md
-!README_EN.md
+!MODEL_CARD.md
 !CONFIGURATION.md
-
-# Allow specific config files
-!config/prompts/private_*.txt
-!CONFIG/prompts/system_prompt.example.txt
-!config/prompts/user_prompt.txt
+!docs/evaluation.md
+!docs/reward_design.md
+!docs/training_details.md
+!examples/keyword_extraction/README.md
+!examples/sample_data/README.md

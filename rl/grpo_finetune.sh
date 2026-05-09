@@ -39,8 +39,8 @@ OUTPUT_DIR="./output/grpo"
 # ===================== Training Parameters =====================
 NUM_EPOCHS=1
 BATCH_SIZE=2
-GRADIENT_ACCUMULATION=8
-LEARNING_RATE=1.5e-6
+GRADIENT_ACCUMULATION=4
+LEARNING_RATE=5e-7
 MAX_LENGTH=4096
 MAX_COMPLETION_LENGTH=2048
 # LoRA parameters
@@ -48,8 +48,8 @@ LORA_RANK=8
 LORA_ALPHA=16
 # GRPO-specific parameters
 BETA=0.01
-NUM_GENERATIONS=8
-TEMPERATURE=1.9
+NUM_GENERATIONS=4        # 受限于显存，推荐值为 8
+TEMPERATURE=0.9
 # Reward function configuration
 EXTERNAL_PLUGINS="./reward_builder.py"
 REWARD_FUNCS="schema_based_reward"
