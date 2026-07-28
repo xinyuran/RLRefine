@@ -79,21 +79,42 @@ rl/output/
 *.pt
 *.gguf
 
-# Raw, generated, and duplicated training data. The small reviewed synthetic
-# second-Schema dataset is intentionally published for reproducibility.
-data/*
-!data/frozen/
-!data/frozen/intent_routing_v1/
-!data/frozen/intent_routing_v1/**
+# Local datasets and generated training artifacts
+data/
 data_zip/
 rl/data/
 
-# Local or historical audit bundles. Only the sanitized second-Schema result
-# package is published.
-reports/*
-!reports/second_schema/
-!reports/second_schema/**
-reports/second_schema/*.log
+# Local research documentation, reports, configurations, and evaluation code
+PROJECT_STATUS.md
+README_CN.md
+configs/
+docs/
+evaluation/
+reports/
+
+# Keep the public repository focused on the runnable core. These files remain
+# available locally but are not tracked or uploaded.
+scripts/*
+!scripts/__init__.py
+!scripts/contract_quickstart.py
+!scripts/run_vllm.sh
+
+tests/*
+!tests/__init__.py
+!tests/test_contract_quickstart.py
+!tests/test_intent_routing_schema.py
+!tests/test_keyword_schema_contract.py
+!tests/test_processor_contract.py
+!tests/test_reward_builder.py
+!tests/test_reward_builder_v2.py
+
+prompts/prompt_template_4.py
+prompts/prompt_template_4_short.py
+prompts/prompt_template_5.py
+prompts/prompt_template_6.py
+
+rl/generate_data_dpo.py
+rl/generate_data_qwen3-max.py
 
 # Local lock files (the project currently uses requirements*.txt)
 pdm.lock

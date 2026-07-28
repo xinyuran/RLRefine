@@ -1,31 +1,40 @@
 # 关键词抽取示例
 
-本示例展示如何使用 StructAlign 对中文电商评论执行 Schema 约束关键词抽取。
+本示例展示如何使用 StructAlign 从中文电商评论中抽取带说明和置信度的关键词。
 
-> **说明：** 该任务由作者 rxy 针对中文文本设计和验证，英文效果尚未充分评估。
+## 输出结构
+
+```json
+{
+  "keywords": [
+    ["原文评价包装", "包装", 0.96],
+    ["原文描述屏幕", "屏幕", 0.94]
+  ]
+}
+```
+
+每个关键词必须是原文中的连续子串，长度、数量、重复项和置信度类型都会经过校验。
 
 ## 运行方式
 
-### 1. 启动 vLLM 服务
+启动 OpenAI-compatible 模型服务：
 
 ```bash
 vllm serve Qwen/Qwen2.5-7B-Instruct --port 8000
 ```
 
-### 2. 运行示例
+配置并运行示例：
 
 ```bash
-cd StructAlign
+cp examples/keyword_extraction/.env.example examples/keyword_extraction/.env
 python examples/keyword_extraction/run.py
 ```
 
 ## 文件说明
 
-- `schema.py`：定义关键词抽取 JSON Schema；
-- `config.py`：任务配置；
+- `schema.py`：关键词字段与约束；
+- `config.py`：推理配置；
 - `run.py`：示例入口；
-- `sample_data.jsonl`：示例数据。
+- `sample_data.jsonl`：少量输入样例。
 
-主实验协议、最终指标和限制见
-[`docs/experiment_report.md`](../../docs/experiment_report.md)。如需定义其他任务，可参考
-[`examples/intent_routing/`](../intent_routing/) 的固定对象 Schema。
+固定字段分类任务可参考 [`examples/intent_routing/`](../intent_routing/)。

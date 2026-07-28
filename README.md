@@ -1,72 +1,48 @@
 # StructAlign
 
-一个面向 Schema 约束信息抽取的、评测驱动的大模型后训练与服务实践项目。
+[English](README_EN.md) | 简体中文
 
-项目以中文电商评论关键词抽取为主任务，将版本化数据、冻结评测边界、
-SFT/DPO/GRPO、Reward 验证、约束解码、语义合约修复和部署门控串成一条可复现的实验
-链路。目标不是搭建完整平台，而是保留可信实验、真实工程问题和可供面试深挖的决策
-过程。
+面向大语言模型的 Schema 驱动结构化信息抽取工具包。
 
-## 已验证结果
+StructAlign 将任务定义、推理约束、后训练奖励和输出校验统一到同一份 Schema 与语义
+合约中，帮助模型稳定输出可解析、可验证的结构化结果。仓库以中文电商评论关键词抽取
+为主要示例，同时提供客服工单路由示例，展示如何在不重写核心流程的情况下适配新的
+输出结构。
 
-关键词主线已经完成至 BP6。
+## 核心能力
 
-| 阶段 | Dev Macro-F1 | Dev Schema 合法率 |
-|---|---:|---:|
-| Base v2 | 0.2490 | 0.4560 |
-| SFT | 0.4946 | 0.6737 |
-| DPO | 0.5437 | 0.7432 |
-| E4 GRPO-from-DPO | 0.5759 | 0.7976 |
-| E4 + 确定性修复 | 0.6932 | 1.0000 |
+- **Schema 驱动**：用字段类型、枚举、长度和嵌套结构定义任务输出。
+- **训练与推理对齐**：SFT、DPO、GRPO 和在线推理共享结构化目标。
+- **语义合约校验**：在 JSON Schema 之外检查来源忠实、关键词长度、数量和重复项。
+- **可靠性处理**：支持重试、确定性修复、降级提取和失败状态区分。
+- **OpenAI 兼容接口**：可连接 vLLM 等 OpenAI-compatible 推理服务。
+- **可扩展任务**：关键词列表与固定字段分类任务使用同一套核心抽象。
 
-在 496 条冻结 human-gold one-shot 上，E4 相对 DPO 的 Macro/Micro-F1/Schema 提升为
-`+0.0541/+0.0701/+0.0786`。
-
-最终关键词任务策略保持保守：
+## 工作流程
 
 ```text
-冻结 E4
-  -> strict JSON-Schema 解码
-  -> 确定性语义合约校验/修复
-  -> 不可恢复样本进入 quarantine
-  -> 人工复核
+任务 Schema
+    │
+    ├── Prompt 与 JSON Schema
+    ├── SFT / DPO / GRPO 训练目标
+    └── 推理结果校验
+             │
+             ├── 合法结果
+             ├── 可确定性修复的结果
+             └── 失败或需人工复核的结果
 ```
 
-决策为 `RETAIN_REPAIRED_E4_FOR_OFFLINE_REVIEW`，不授权自动线上部署
-（`deployment_authorized=false`）。
+StructAlign 明确区分三个层次：
 
-## 第二 Schema 结果
+1. 请求是否成功完成；
+2. 输出是否满足 JSON Schema；
+3. 输出是否满足任务语义，例如关键词必须来自原文。
 
-Support-ticket routing smoke test 已在 240 条人工复核的合成数据上完成。在 100 条冻结
-test 上，Base unconstrained 与 strict JSON Schema 输出完全相同：
+这种区分可以避免把“JSON 能解析”误认为“业务结果可信”。
 
-| 指标 | Unconstrained | Strict JSON Schema |
-|---|---:|---:|
-| Intent Macro-F1 | 0.850810 | 0.850810 |
-| Urgency accuracy | 0.650000 | 0.650000 |
-| Schema 合法率 | 1.000000 | 1.000000 |
-| 语义合约合法率 | 0.990000 | 0.990000 |
-| P50 延迟 | 0.175011 s | 0.226956 s |
-| 吞吐 | 497.232 tok/s | 368.190 tok/s |
+## 快速开始
 
-Strict decoding 没有带来测试质量收益，但 P50 延迟增加 `29.7%`、吞吐下降 `26.0%`。
-该结果只证明框架可以适配不同 Schema，不代表真实客服业务泛化或部署授权。预注册
-stop rule 已执行，模型实验到此结束。
-
-## 项目体现的能力
-
-- 数据血缘、group-aware split、challenge 诊断和冻结 human-gold 隔离；
-- Base、SFT、DPO、GRPO 使用同一评测协议；
-- Reward 组件测试、攻击样本和失败安全的阶段授权；
-- ms-swift、LoRA adapter、插件加载和 vLLM 的真实集成排障；
-- 区分形式 JSON 合法、语义业务合约合法和 transport 成功；
-- 用批次墙钟计算并发吞吐，并根据质量收益与性能成本选择服务策略；
-- 保留负向证据，不为了展示而夸大部署结论。
-
-## 工程验证
-
-基础安装要求 Python 3.10+，不包含 `ms-swift`、`vLLM` 或模型权重，可在普通 CPU
-环境完成：
+基础安装要求 Python 3.10+，不需要 GPU、模型权重或外部 API：
 
 ```bash
 git clone https://github.com/xinyuran/RLRefine.git
@@ -76,33 +52,130 @@ source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 python -m scripts.contract_quickstart
+```
+
+Windows PowerShell 使用：
+
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
+quickstart 会在 CPU 上验证关键词抽取和客服工单路由两种 Schema：
+
+```json
+{
+  "keyword_contract": {"valid": true, "errors": []},
+  "routing_schema": {"valid": true, "errors": []}
+}
+```
+
+运行公开测试：
+
+```bash
 python -m unittest discover -v tests
 ```
 
-Windows PowerShell 只需将激活命令替换为 `.venv\Scripts\Activate.ps1`。
+## 连接模型服务
 
-CPU quickstart 只验证两种 Schema 与语义合约，不下载模型、不调用外部 API，也不运行
-实验。GPU 训练/服务依赖单独位于 `requirements-training.txt`；相关 runner 位于
-`scripts/`，并受阶段授权或冻结清单控制。历史结果应从冻结配置和报告复现，不应盲目
-重跑所有训练流程。
+安装 GPU 训练与服务依赖：
 
-## 文档入口
+```bash
+python -m pip install -r requirements-training.txt
+```
 
-- [`PROJECT_STATUS.md`](PROJECT_STATUS.md)：当前唯一项目状态；
-- [`docs/experiment_report.md`](docs/experiment_report.md)：完整实验链路与结果；
-- [`docs/annotation_guide.md`](docs/annotation_guide.md)：标注与仲裁规范；
-- [`docs/second_schema.md`](docs/second_schema.md)：第二 Schema 协议、结果和复现命令；
-- `core/`、`evaluation/`、`rl/`、`scripts/`、`configs/`：实现与可复现入口。
+启动一个 OpenAI-compatible vLLM 服务：
 
-## 局限
+```bash
+bash scripts/run_vllm.sh 0 8001 /path/to/model
+```
 
-- 主任务仅覆盖中文电商关键词抽取。
-- E4 是研究候选，不是线上生产模型。
-- 第二 Schema 使用小规模、模板合成且人工复核的数据，不代表真实业务泛化。
-- 历史 BP5 throughput 不是墙钟并发吞吐，不能作为生产 SLO。
-- 两条第二 Schema 合约失败把 prompt 包装文本 `工单：` 复制进了 evidence，说明 strict
-  JSON Schema 仍不能保证来源忠实性。
+复制并修改环境变量：
 
-代码采用 MIT License。公开的 `data/frozen/intent_routing_v1/` 是本项目确定性生成并
-人工复核的合成数据；原始/派生训练数据、模型权重、运行日志、个人材料和本地路径均不
-包含在发布包中。
+```bash
+cp examples/keyword_extraction/.env.example examples/keyword_extraction/.env
+python examples/keyword_extraction/run.py
+```
+
+核心推理入口是 `core.processor.RLRefineProcessor`。任务 Schema 示例位于
+`examples/keyword_extraction/schema.py` 和 `examples/intent_routing/schema.py`。
+
+## 后训练配置
+
+已验证流程以 Qwen2.5-7B-Instruct 为基座，通过 LoRA 依次完成监督微调、偏好优化和
+基于奖励的强化学习。
+
+| 阶段 | 主要目标 | LoRA rank / alpha | 学习率 | Epoch | 关键参数 |
+|---|---|---:|---:|---:|---|
+| SFT | 学习输出格式与抽取任务 | 16 / 64 | `1e-5` | 5 | 最大长度 8192 |
+| DPO | 学习高低质量答案偏好 | 8 / 32 | `5e-7` | 1 | `beta=0.2` |
+| GRPO | 直接优化结构与抽取奖励 | 8 / 16 | `5e-7` | 1 | `beta=0.01`，每题采样 4 个回答 |
+
+主要训练环境：
+
+| 项目 | 配置 |
+|---|---|
+| GPU | 2 × NVIDIA H100 80GB |
+| 训练精度 | BF16 |
+| 训练框架 | ms-swift 3.11.2 |
+| 推理与生成 | vLLM 0.13.0 |
+| 并行与显存优化 | DeepSpeed ZeRO-2、vLLM colocate |
+| 基座模型 | Qwen2.5-7B-Instruct |
+
+训练脚本位于 `rl/`。默认路径仅为示例，使用者需要提供自己的模型与数据。
+
+## 评测结果
+
+以下结果来自固定开发集上的离线评测。**宏平均 F1（Macro-F1）**表示对各样本 F1
+等权平均，减少长关键词列表对总分的主导；**Schema 合法率**表示输出满足规定字段、
+类型和结构的比例。
+
+| 模型阶段 | Macro-F1 | Schema 合法率 |
+|---|---:|---:|
+| 基座模型 | 0.2490 | 0.4560 |
+| SFT | 0.4946 | 0.6737 |
+| DPO | 0.5437 | 0.7432 |
+| GRPO | 0.5759 | 0.7976 |
+| GRPO + 确定性合约修复 | 0.6932 | 1.0000 |
+
+在另一个包含 496 条人工复核样本的隔离测试集上，GRPO 相对 DPO 的 Macro-F1、
+Micro-F1 和 Schema 合法率分别提升 `0.0541`、`0.0701` 和 `0.0786`。该测试集未参与
+训练或模型选择。
+
+为了验证 Schema 可扩展性，项目还使用 240 条人工复核的合成客服工单测试了固定字段
+路由任务。在其中 100 条隔离测试样本上，普通解码与严格 JSON Schema 解码得到相同的
+质量指标：
+
+| 指标 | 普通解码 | 严格 JSON Schema |
+|---|---:|---:|
+| Intent Macro-F1 | 0.8508 | 0.8508 |
+| 紧急程度准确率 | 0.6500 | 0.6500 |
+| Schema 合法率 | 1.0000 | 1.0000 |
+| 完整语义合约合法率 | 0.9900 | 0.9900 |
+| P50 延迟 | 0.175 s | 0.227 s |
+| 吞吐 | 497.2 tok/s | 368.2 tok/s |
+
+在这个任务上，严格约束解码没有提高质量，但 P50 延迟增加约 `29.7%`，吞吐下降约
+`26.0%`。这说明约束解码是否启用，应依据实际错误分布和性能预算决定。
+
+## 项目结构
+
+```text
+core/        Schema、配置、推理、预处理、后处理与语义合约
+prompts/     关键词任务 Prompt 构建
+rl/          SFT、DPO、GRPO、LoRA 合并与 Reward 实现
+examples/    关键词抽取、工单路由和少量数据格式示例
+scripts/     CPU quickstart 与 vLLM 启动脚本
+tests/       核心 Schema、推理与 Reward 测试
+```
+
+## 适用边界
+
+- 当前质量结果主要来自中文电商评论关键词抽取。
+- 客服工单路由数据是小规模模板合成数据，不代表真实客服流量表现。
+- 确定性修复只能处理规则明确的错误，不能替代人工复核。
+- 离线指标和单机服务基准不等同于生产环境 SLO。
+- 仓库不包含模型权重、训练数据、内部评测报告或生产部署配置。
+
+## License
+
+[MIT License](LICENSE)
