@@ -1,11 +1,11 @@
-# StructAlign
+# RLRefine
 
 English | [简体中文](README.md)
 
 A schema-driven toolkit for structured information extraction with large
 language models.
 
-StructAlign aligns task definitions, inference constraints, post-training
+RLRefine aligns task definitions, inference constraints, post-training
 rewards, and output validation around a shared schema and semantic contract.
 Its primary example extracts keywords from Chinese e-commerce reviews. A
 support-ticket routing example demonstrates how the same abstractions can
@@ -40,7 +40,7 @@ Task schema
              └── Failure or human-review candidate
 ```
 
-StructAlign keeps three questions separate:
+RLRefine keeps three questions separate:
 
 1. Did the request complete successfully?
 2. Does the output satisfy its JSON Schema?
@@ -137,6 +137,71 @@ Main training environment:
 
 Training entry points are located in `rl/`. Their paths are examples; users
 must provide their own model and datasets.
+
+## Qualitative Comparison
+
+The following preserved example compares the base model with the model after
+the full SFT, DPO, and GRPO sequence. Both use the same review, inference entry
+point, and post-processing pipeline. This example illustrates a behavioral
+change; it is not a substitute for the aggregate evaluation that follows.
+
+> I finally received the product I wanted. It is very good and offers excellent
+> value for money. This has been one of my most satisfying purchases. The seller
+> was professional and enthusiastic, answered every question quickly, and the
+> package arrived intact. The product was even better than expected, and I
+> would return for another purchase and ask for a discount.
+
+The model input was the original Chinese review; the English text above is a
+reader-oriented translation.
+
+| Comparison | Qwen2.5-7B-Instruct base model | Final SFT → DPO → GRPO model |
+|---|---|---|
+| Keywords after identical post-processing | `product, attitude, reply, value-for-money, shopping, discount` | `satisfied, good, product, value-for-money, attitude, reply, packaging, discount` |
+| Keyword count | 6 | 8 |
+| Important information | Missed satisfaction, positive evaluation, and packaging | Covered sentiment, product, service, and packaging signals |
+| Raw confidence type | String, such as `"0.95"` | JSON number, such as `0.95` |
+| Main structural issue | Duplicated product keyword and invalid confidence type | Parseable output; duplicate items removed by shared post-processing |
+
+The final model recovered the strong sentiment term “satisfied,” the positive
+descriptor “good,” and the delivery attribute “packaging,” while dropping the
+less specific “shopping” keyword. Stable quality improvements are assessed
+with the full evaluation set rather than this single representative case.
+
+<details>
+<summary><b>View representative raw JSON excerpts</b></summary>
+
+The base model emitted string-valued confidence scores and a duplicate keyword:
+
+```json
+{
+  "keywords": [
+    ["宝贝收到后包装完整", "宝贝", "0.95"],
+    ["宝贝比我想象中的还要好", "宝贝", "0.95"],
+    ["掌柜态度很专业热情", "态度", "0.90"],
+    ["这是我购物以来让我最满意的一次购物", "购物", "0.75"]
+  ]
+}
+```
+
+After SFT, DPO, and GRPO, the model emitted numeric confidence values and
+recovered previously missed information:
+
+```json
+{
+  "keywords": [
+    ["评论多次强调整体购物体验满意，'满意'为核心情绪词", "满意", 0.95],
+    ["'东西很好'中提取通用正面评价词'好'", "好", 0.90],
+    ["全文核心商品主体，多次提及'宝贝'", "宝贝", 0.88],
+    ["'包装完整'中提取交付属性关键词'包装'", "包装", 0.78]
+  ]
+}
+```
+
+The excerpts only include entries needed to show the difference. The keyword
+lists in the table come from the complete outputs after identical
+post-processing.
+
+</details>
 
 ## Evaluation Results
 
