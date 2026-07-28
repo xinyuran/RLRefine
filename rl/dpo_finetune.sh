@@ -79,10 +79,11 @@ fi
 mkdir -p ${OUTPUT_DIR}
 # Start training
 nproc_per_node=${NPROC_PER_NODE} \
-swift dpo \
-    --model_path ${MODEL_PATH} \
+swift rlhf \
+    --rlhf_type dpo \
+    --model ${MODEL_PATH} \
     --dataset ${DATASET_PATH} \
-        --train_type dpo \
+        --train_type lora \
         --num_train_epochs ${NUM_EPOCHS} \
         --per_device_train_batch_size ${BATCH_SIZE} \
         --gradient_accumulation_steps ${GRADIENT_ACCUMULATION} \

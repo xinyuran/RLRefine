@@ -12,7 +12,7 @@ The output must be converted to ms-swift's DPO data format before training.
 See: https://swift.readthedocs.io/zh-cn/latest/Customization/Custom-dataset.html#dpo-orpo-cpo-simpo-rm
 
 Usage:
-    1. Set your API credentials below (api_key, base_url)
+    1. Set OPENAI_API_KEY and OPENAI_BASE_URL in the environment
     2. Configure CSV_FILE_LIST with your data file paths
     3. Run: python generate_data_dpo.py
 """
@@ -29,8 +29,8 @@ from core.preprocess import preprocess_comment, advanced_preprocess
 
 # ===================== Configuration =====================
 client = OpenAI(
-    api_key="your-api-key",
-    base_url="https://your-api-endpoint/v1",
+    api_key=os.environ["OPENAI_API_KEY"],
+    base_url=os.environ["OPENAI_BASE_URL"],
 )
 
 CSV_FILE_LIST = [

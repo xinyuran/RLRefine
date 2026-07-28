@@ -4,8 +4,11 @@ Builds schema-validated reward functions for GRPO training
 """
 import re
 import json
+import logging
 from typing import List, Dict, Any, Optional, Callable
 from dataclasses import dataclass, field
+
+from core.keyword_contract import MAX_KEYWORD_LENGTH, MAX_KEYWORDS
 
 try:
     from swift.plugin import ORM, orms
@@ -31,8 +34,11 @@ class RewardConfig:
     analysis_keywords: List[str] = field(default_factory=lambda: ['分析', '提取', '识别', '关键词', '原文'])
     enable_schema_validation: bool = True
     enable_hallucination_check: bool = True
-    max_items: int = 15
-    max_keyword_length: int = 4
+    max_items: int = MAX_KEYWORDS
+    max_keyword_length: int = MAX_KEYWORD_LENGTH
+    require_solution: bool = True
+    enable_component_logging: bool = True
+    log_every_n_calls: int = 20
 
 
 class SchemaBasedReward(ORM if HAS_SWIFT else object):
@@ -59,6 +65,9 @@ class SchemaBasedReward(ORM if HAS_SWIFT else object):
         self.custom_validators = custom_validators or {}
         self.extract_keywords_func = extract_keywords_func or self._default_extract_keywords
         self.required_fields = self._get_required_fields()
+        self._call_count = 0
+        self._input_contract_logged = False
+        self.logger = logging.getLogger(__name__)
 
     def _get_required_fields(self) -> List[str]:
         """Extract required fields from the schema"""
@@ -78,18 +87,111 @@ class SchemaBasedReward(ORM if HAS_SWIFT else object):
         Args:
             completions: List of model-generated texts
             solution: List of reference answers (Ground Truth)
-            **kwargs: Contains 'prompts' and other information
+            **kwargs: Contains source context in 'prompts' or ms-swift 'messages'
         """
-        prompts = kwargs.get('prompts', [None] * len(completions))
-        if not solution:
-            solution = [None] * len(completions)
+        prompts = kwargs.get('prompts')
+        prompt_source = "prompts_kwarg"
+        prompts_are_missing = prompts is None or (
+            isinstance(prompts, (list, tuple))
+            and all(item is None for item in prompts)
+        )
+        if prompts_are_missing:
+            messages = kwargs.get('messages')
+            if messages is not None:
+                prompts = messages
+                prompt_source = "messages_kwarg"
+            else:
+                prompt_source = "unavailable"
+        solution_source = "positional"
+        if solution is None:
+            solution = kwargs.get('solutions')
+            solution_source = "solutions_kwarg"
+        if solution is None:
+            solution = kwargs.get('original_response')
+            solution_source = "original_response_kwarg"
+
+        if not self._input_contract_logged:
+            self._log_input_contract(
+                completions,
+                solution,
+                prompts,
+                solution_source,
+                prompt_source,
+                kwargs,
+            )
+            self._input_contract_logged = True
+
+        prompts = self._normalize_batch(prompts, len(completions), "prompts")
+        solution = self._normalize_batch(solution, len(completions), "solution")
+
+        if self.config.require_solution and any(not item for item in solution):
+            raise ValueError(
+                "Reward requires a non-empty 'solution' for every completion. "
+                "Regenerate GRPO data with rl/convert_sft_to_grpo.py so the "
+                "assistant reference is stored in the 'solution' field."
+            )
 
         rewards = []
+        details_batch = []
         for comp, sol, prompt in zip(completions, solution, prompts):
-            reward = self._compute_single_reward(comp, sol, prompt)
-            rewards.append(reward)
+            details = self.score_with_details(comp, sol, prompt)
+            rewards.append(details['total'])
+            details_batch.append(details)
+
+        self._call_count += 1
+        if (
+            self.config.enable_component_logging
+            and (self._call_count == 1 or self._call_count % self.config.log_every_n_calls == 0)
+        ):
+            self._log_component_summary(details_batch)
 
         return rewards
+
+    def _log_input_contract(
+        self,
+        completions: Any,
+        solution: Any,
+        prompts: Any,
+        solution_source: str,
+        prompt_source: str,
+        kwargs: Dict[str, Any],
+    ) -> None:
+        """Log types and batch shapes once without exposing prompt or label text."""
+        def summarize(value: Any) -> Dict[str, Any]:
+            summary = {"type": type(value).__name__}
+            if isinstance(value, (list, tuple)):
+                summary["size"] = len(value)
+                summary["first_item_type"] = type(value[0]).__name__ if value else None
+            elif isinstance(value, dict):
+                summary["keys"] = sorted(str(key) for key in value)
+            return summary
+
+        payload = {
+            "event": "reward_input_contract",
+            "solution_source": solution_source,
+            "prompt_source": prompt_source,
+            "completions": summarize(completions),
+            "solution": summarize(solution),
+            "prompts": summarize(prompts),
+            "kwarg_keys": sorted(str(key) for key in kwargs),
+        }
+        self.logger.info("REWARD_INPUT_CONTRACT %s", json.dumps(payload, ensure_ascii=False))
+
+    @staticmethod
+    def _normalize_batch(value: Any, expected_size: int, field_name: str) -> List[Any]:
+        """Normalize scalar or list inputs to the batch size expected by ms-swift."""
+        if value is None:
+            return [None] * expected_size
+        if isinstance(value, (str, dict)):
+            return [value] * expected_size
+        if not isinstance(value, (list, tuple)):
+            raise TypeError(f"{field_name} must be a scalar, list, or tuple")
+        if len(value) != expected_size:
+            raise ValueError(
+                f"{field_name} batch size {len(value)} does not match "
+                f"completions batch size {expected_size}"
+            )
+        return list(value)
 
     def _compute_single_reward(
         self,
@@ -97,31 +199,85 @@ class SchemaBasedReward(ORM if HAS_SWIFT else object):
         solution: str,
         prompt: str
     ) -> float:
-        """Compute composite score for a single sample"""
-        score = 0.0
+        """Backward-compatible total score API."""
+        return self.score_with_details(completion, solution, prompt)['total']
+
+    def score_with_details(
+        self,
+        completion: str,
+        solution: Any,
+        prompt: Any
+    ) -> Dict[str, Any]:
+        """Compute a score and expose every component for tests and training logs."""
+        if self.config.require_solution and not solution:
+            raise ValueError("A non-empty solution is required to compute task accuracy")
+
+        details = {
+            'thinking': 0.0,
+            'format': 0.0,
+            'quality': 0.0,
+            'f1': 0.0,
+            'accuracy': 0.0,
+            'hallucination_penalty': 0.0,
+            'schema_valid': False,
+            'valid_json': False,
+            'has_solution': bool(solution),
+        }
 
         think_content, has_think = self._extract_thinking(completion)
-        score += self._evaluate_thinking(think_content, has_think)
+        details['thinking'] = self._evaluate_thinking(think_content, has_think)
 
         parsed_data, valid_json = self._parse_json(completion, has_think)
-        score += self._evaluate_format(valid_json, parsed_data)
+        details['valid_json'] = valid_json
+        details['format'] = self._evaluate_format(valid_json, parsed_data)
 
         if not valid_json:
-            return score
+            details['total'] = self._clamp_score(details['thinking'] + details['format'])
+            return details
 
-        score += self._evaluate_quality(parsed_data)
+        details['quality'] = self._evaluate_quality(parsed_data)
+        details['schema_valid'] = self._passes_schema_gate(parsed_data)
 
         if self.config.enable_hallucination_check and prompt:
-            penalty = self._check_hallucination(parsed_data, prompt)
-            score -= penalty
+            details['hallucination_penalty'] = self._check_hallucination(parsed_data, prompt)
 
-        if solution:
-            f1_score = self._compute_f1(parsed_data, solution)
-            score += f1_score * self.config.accuracy_weight
-        elif self._has_valid_content(parsed_data):
-            score += 0.2
+        if solution and details['schema_valid']:
+            details['f1'] = self._compute_f1(parsed_data, solution)
+            details['accuracy'] = details['f1'] * self.config.accuracy_weight
 
+        raw_total = (
+            details['thinking']
+            + details['format']
+            + details['quality']
+            + details['accuracy']
+            - details['hallucination_penalty']
+        )
+        details['total'] = self._clamp_score(raw_total)
+        return details
+
+    @staticmethod
+    def _clamp_score(score: float) -> float:
         return max(0.0, min(1.0, score))
+
+    def _log_component_summary(self, details_batch: List[Dict[str, Any]]) -> None:
+        if not details_batch:
+            return
+        numeric_fields = [
+            'total', 'thinking', 'format', 'quality', 'f1',
+            'accuracy', 'hallucination_penalty'
+        ]
+        summary = {
+            'event': 'reward_component_summary',
+            'call': self._call_count,
+            'batch_size': len(details_batch),
+            'schema_valid_rate': sum(d['schema_valid'] for d in details_batch) / len(details_batch),
+            'valid_json_rate': sum(d['valid_json'] for d in details_batch) / len(details_batch),
+        }
+        for field_name in numeric_fields:
+            summary[f'{field_name}_mean'] = round(
+                sum(float(d[field_name]) for d in details_batch) / len(details_batch), 6
+            )
+        self.logger.info("REWARD_METRICS %s", json.dumps(summary, ensure_ascii=False))
 
     def _extract_thinking(self, completion: str) -> tuple:
         """Extract thinking process"""
@@ -209,10 +365,20 @@ class SchemaBasedReward(ORM if HAS_SWIFT else object):
                     passed_fields += 1
 
             if total_fields > 0:
-                score += weight * (passed_fields / total_fields)
+                schema_ratio = passed_fields / total_fields
+            else:
+                schema_ratio = 1.0
         else:
-            if len(parsed_data) > 0:
-                score += weight
+            schema_ratio = 1.0 if len(parsed_data) > 0 else 0.0
+
+        expects_keywords = (
+            'keywords' in parsed_data
+            or 'keywords' in self.schema.get('properties', {})
+        )
+        if not expects_keywords:
+            return weight * schema_ratio
+
+        score += weight * 0.5 * schema_ratio
 
         if 'keywords' in parsed_data and isinstance(parsed_data['keywords'], list):
             keywords = parsed_data['keywords']
@@ -228,7 +394,24 @@ class SchemaBasedReward(ORM if HAS_SWIFT else object):
                 if len(keywords) > self.config.max_items:
                     score -= 0.1
 
-        return score
+        return max(0.0, min(weight, score))
+
+    def _passes_schema_gate(self, parsed_data: Dict) -> bool:
+        """Return whether task accuracy is allowed to contribute to reward."""
+        if not isinstance(parsed_data, dict):
+            return False
+        if any(field not in parsed_data or parsed_data[field] is None for field in self.required_fields):
+            return False
+
+        if 'keywords' in parsed_data:
+            keywords = parsed_data['keywords']
+            if not isinstance(keywords, list) or not keywords:
+                return False
+            if len(keywords) > self.config.max_items:
+                return False
+            return all(self._validate_keyword_item(item) for item in keywords)
+
+        return True
 
     def _validate_keyword_item(self, item: Any) -> bool:
         """Validate keyword item format"""
@@ -239,11 +422,10 @@ class SchemaBasedReward(ORM if HAS_SWIFT else object):
         if len(kw_text) < 1 or len(kw_text) > self.config.max_keyword_length:
             return False
 
-        try:
-            score_val = float(item[2])
-            if not (0 <= score_val <= 1):
-                return False
-        except (ValueError, TypeError):
+        score_val = item[2]
+        if isinstance(score_val, bool) or not isinstance(score_val, (int, float)):
+            return False
+        if not (0 <= score_val <= 1):
             return False
 
         return True
@@ -256,17 +438,27 @@ class SchemaBasedReward(ORM if HAS_SWIFT else object):
         if not source_text:
             return penalty
 
-        keywords = self._extract_keywords_func(parsed_data)
+        keywords = self.extract_keywords_func(parsed_data)
         for kw in keywords:
             if kw not in source_text:
                 penalty += self.config.hallucination_penalty
 
         return min(penalty, self.config.max_hallucination_penalty)
 
-    def _extract_source_text(self, prompt: str) -> str:
+    def _extract_source_text(self, prompt: Any) -> str:
         """Extract source text from the prompt"""
         if not prompt:
             return ""
+
+        if isinstance(prompt, list):
+            prompt = "\n".join(
+                str(item.get('content', '')) if isinstance(item, dict) else str(item)
+                for item in prompt
+            )
+        elif isinstance(prompt, dict):
+            prompt = str(prompt.get('content', prompt))
+        elif not isinstance(prompt, str):
+            prompt = str(prompt)
 
         patterns = [
             r'【待处理评论】\s*\n(.+?)(?:\n\n请严格|$)',
@@ -296,7 +488,7 @@ class SchemaBasedReward(ORM if HAS_SWIFT else object):
 
     def _compute_f1(self, parsed_data: Dict, solution: str) -> float:
         """Compute F1 score"""
-        pred_keywords = self._extract_keywords_func(parsed_data)
+        pred_keywords = self.extract_keywords_func(parsed_data)
         gold_keywords = self._parse_solution(solution)
 
         if not gold_keywords:
@@ -316,15 +508,17 @@ class SchemaBasedReward(ORM if HAS_SWIFT else object):
             return 2 * (precision * recall) / (precision + recall)
         return 0.0
 
-    def _parse_solution(self, solution: str) -> List[str]:
+    def _parse_solution(self, solution: Any) -> List[str]:
         """Parse reference answer"""
         keywords = []
         try:
+            if isinstance(solution, dict):
+                return self.extract_keywords_func(solution)
             if isinstance(solution, str):
                 match = re.search(r'\{[\s\S]*\}', solution)
                 if match:
                     data = json.loads(match.group())
-                    return self._extract_keywords_func(data)
+                    return self.extract_keywords_func(data)
         except:
             pass
         return keywords
@@ -387,8 +581,8 @@ class RewardBuilder:
             quality_weight=0.2,
             accuracy_weight=0.5,
             thinking_tag="think",
-            max_keyword_length=4,
-            max_items=15,
+            max_keyword_length=MAX_KEYWORD_LENGTH,
+            max_items=MAX_KEYWORDS,
             analysis_keywords=['主体', '评价', '描述', '关键词', '原文']
         )
 
@@ -399,8 +593,17 @@ class RewardBuilder:
                     "type": "array",
                     "items": {
                         "type": "array",
-                        "description": "[category, keyword, confidence]"
-                    }
+                        "description": "[category, keyword, confidence]",
+                        "prefixItems": [
+                            {"type": "string", "minLength": 1},
+                            {"type": "string", "minLength": 1, "maxLength": MAX_KEYWORD_LENGTH},
+                            {"type": "number", "minimum": 0.0, "maximum": 1.0}
+                        ],
+                        "minItems": 3,
+                        "maxItems": 3
+                    },
+                    "minItems": 1,
+                    "maxItems": MAX_KEYWORDS
                 }
             },
             "required": ["keywords"]
@@ -480,15 +683,15 @@ RewardBuilder.register('entity', SchemaBasedReward)
 if __name__ == "__main__":
     reward_func = RewardBuilder.create_keyword_reward()
 
-    mock_prompt = "用户评价：这款手机屏幕很大，电池也很耐用，但是拍照效果一般。"
+    mock_prompt = "【待处理评论】\n这款手机屏幕很大，电池也很耐用，但是拍照效果一般。\n\n请严格输出。"
     mock_solution = '{"keywords": [["属性", "屏幕大", 0.9], ["属性", "电池耐用", 0.9], ["缺点", "拍照一般", 0.8]]}'
 
     test_cases = [
-        '''<think分析评论，提到屏幕大、电池耐用、拍照一般。</think已分析>
+        '''<think>分析评论，提到屏幕大、电池耐用、拍照一般，并逐项核对原文关键词。</think>
 {"keywords": [["属性", "屏幕大", 0.9], ["属性", "电池耐用", 0.9], ["缺点", "拍照一般", 0.8]]}''',
         '{"keywords": [["优点", "运行速度快", 0.9]]}',
     ]
 
     for i, comp in enumerate(test_cases):
-        r = reward_func([comp], [mock_solution], prompts=[mock_prompt])[0]
-        print(f"Case {i+1} score: {r:.4f}")
+        details = reward_func.score_with_details(comp, mock_solution, mock_prompt)
+        print(json.dumps({"case": i + 1, **details}, ensure_ascii=False))

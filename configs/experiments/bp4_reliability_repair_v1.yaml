@@ -1,0 +1,71 @@
+schema_version: structalign-bp4-reliability-repair-v1
+work_package: BP4_TWO_LEVEL_GATE_AND_DPO_RELIABILITY_REPAIR
+policy: preserve_legacy_decision_reclassify_prospectively_no_automatic_training
+
+inputs:
+  paired_packet: reports/bp4_controlled_matrix/sft/sft_paired_evaluation_packet.json
+  legacy_acceptance: reports/bp4_controlled_matrix/sft/sft_acceptance.json
+  legacy_gate: reports/bp4_controlled_matrix/sft/sft_gate.json
+  expected:
+    paired_packet_sha256: c416e20e810c1a15d082dc70292a666b503fbce90e5e404d5aa1666ca89b70da
+    legacy_acceptance_sha256: bef588fe86b305103a4e4badeabe23bde639862e0e5c1091e9813cf9f7adeb3d
+
+research_progression_gate:
+  paired_macro_f1_delta_min: 0.02
+  paired_macro_f1_ci_low_gt: 0.0
+  micro_f1_delta_min: 0.0
+  schema_valid_rate_delta_min: 0.0
+  hallucination_keyword_rate_delta_max: 0.0
+  require_complete_dev_coverage: true
+  challenge_is_diagnostic_only: true
+
+deployment_gate:
+  paired_macro_f1_delta_min: 0.02
+  paired_macro_f1_ci_low_gt: 0.0
+  micro_f1_delta_min: 0.0
+  schema_valid_rate_min: 0.90
+  schema_valid_rate_delta_min: 0.0
+  hallucination_keyword_rate_max: 0.03
+  hallucination_keyword_rate_delta_max: 0.0
+  mean_output_tokens_ratio_max: 1.0
+  max_token_output_count_delta_max: 0
+  require_complete_dev_coverage: true
+  challenge_is_diagnostic_only: true
+
+dpo_repair_preregistration:
+  matrix_id: E2_DPO_RELIABILITY
+  direct_upstream: E1_SFT
+  checkpoint_selection: minimum_teacher_dev_eval_loss
+  selection_split: teacher_dev
+  diagnostic_split: challenge
+  forbidden_selection: frozen_human_gold
+  bootstrap_iterations: 10000
+  bootstrap_seed: 42
+  decoding:
+    do_sample: false
+    temperature: 0.0
+    max_new_tokens: 768
+    seed: 42
+  research_gate:
+    macro_f1_delta_min: -0.02
+    macro_f1_ci_low_gt: -0.05
+    micro_f1_delta_min: -0.01
+    schema_valid_rate_min: 0.80
+    schema_valid_rate_delta_min: 0.05
+    hallucination_keyword_rate_max: 0.03
+    hallucination_keyword_rate_delta_max: 0.0
+    mean_output_tokens_ratio_max: 0.90
+    max_token_output_count_delta_max: -1
+  deployment_gate:
+    schema_valid_rate_min: 0.90
+    hallucination_keyword_rate_max: 0.03
+    mean_output_tokens_vs_base_ratio_max: 1.0
+    max_token_output_count: 0
+
+outputs:
+  report_dir: reports/bp4_reliability_repair
+  amendment: reports/model_gates/bp2_sft_two_level_amendment.json
+  dpo_authorization_candidate: reports/bp4_reliability_repair/authorization_candidates/bp2_dpo_reliability_ready.json
+  manifest: reports/bp4_reliability_repair/bp4_reliability_manifest.json
+  gate: reports/bp4_reliability_repair/bp4_reliability_gate.json
+  feedback: reports/bp4_reliability_repair/bp4_reliability_feedback.json

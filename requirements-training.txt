@@ -1,0 +1,8 @@
+-r requirements.txt
+
+# Optional GPU training and serving stack. Install only on a compatible Linux
+# CUDA environment; it is not needed for the CPU-only contract quickstart.
+ms-swift==3.11.2
+vllm==0.13.0
+pandas>=2.0.0
+packaging>=24.0

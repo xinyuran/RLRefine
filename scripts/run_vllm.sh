@@ -3,12 +3,11 @@
 # Start vLLM Service
 #
 # Usage:
-#   bash run_vllm.sh [GPU_ID] [PORT]
+#   bash run_vllm.sh [GPU_ID] [PORT] [MODEL]
 #
 #   Examples:
-#     bash run_vllm.sh           # Default: GPU 0, Port 8001
-#     bash run_vllm.sh 0 8001    # GPU 0, Port 8001
-#     bash run_vllm.sh 1 8002    # GPU 1, Port 8002
+#     bash run_vllm.sh
+#     bash run_vllm.sh 0 8001 /path/to/model
 #
 
 echo "=========================================="
@@ -16,12 +15,10 @@ echo " Starting vLLM Service"
 echo "=========================================="
 
 # ==================== Configuration ====================
-# Model path - modify to your model path
-MODEL_PATH="/data/home/ranxinyu/common_models/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"
-
 # GPU and port configuration (can be overridden via command line args)
-GPU_ID=${1:-5}
+GPU_ID=${1:-0}
 PORT=${2:-8001}
+MODEL_PATH=${3:-Qwen/Qwen2.5-7B-Instruct}
 
 # vLLM configuration
 DTYPE="float16"

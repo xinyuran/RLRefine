@@ -1,31 +1,31 @@
-# Keyword Extraction Example
+# 关键词抽取示例
 
-This example demonstrates how to use the RLRefine framework for keyword extraction from Chinese e-commerce reviews.
+本示例展示如何使用 StructAlign 对中文电商评论执行 Schema 约束关键词抽取。
 
-> **Note**: This example was designed and tested for Chinese text by the author (rxy). English effectiveness has not been fully validated.
+> **说明：** 该任务由作者 rxy 针对中文文本设计和验证，英文效果尚未充分评估。
 
-## How to Run
+## 运行方式
 
-### 1. Start the vLLM Service
+### 1. 启动 vLLM 服务
 
 ```bash
 vllm serve Qwen/Qwen2.5-7B-Instruct --port 8000
 ```
 
-### 2. Run the Example
+### 2. 运行示例
 
 ```bash
-cd RLRefine
+cd StructAlign
 python examples/keyword_extraction/run.py
 ```
 
-## File Descriptions
+## 文件说明
 
-- `schema.py`: Defines the JSON Schema for keyword extraction
-- `config.py`: Task configuration
-- `run.py`: Main execution script
-- `sample_data.jsonl`: Sample data
+- `schema.py`：定义关键词抽取 JSON Schema；
+- `config.py`：任务配置；
+- `run.py`：示例入口；
+- `sample_data.jsonl`：示例数据。
 
-## Custom Tasks
-
-Refer to the [Custom Tasks](../../README.md#custom-tasks) section in the main README.
+主实验协议、最终指标和限制见
+[`docs/experiment_report.md`](../../docs/experiment_report.md)。如需定义其他任务，可参考
+[`examples/intent_routing/`](../intent_routing/) 的固定对象 Schema。

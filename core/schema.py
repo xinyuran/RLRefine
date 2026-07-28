@@ -33,6 +33,7 @@ class FieldDefinition:
     enum_values: Optional[List[Any]] = None
     array_item_type: Optional[FieldType] = None
     array_item_schema: Optional['TaskSchema'] = None
+    array_tuple_fields: Optional[List['FieldDefinition']] = None
     pattern: Optional[str] = None
     default: Optional[Any] = None
     examples: Optional[List[Any]] = None
@@ -40,8 +41,14 @@ class FieldDefinition:
 
     def to_json_schema(self) -> Dict[str, Any]:
         """Convert to standard JSON Schema format"""
+        if self.type == FieldType.FLOAT:
+            json_type = "number"
+        elif self.type == FieldType.ARRAY_OF_OBJECTS:
+            json_type = "array"
+        else:
+            json_type = self.type.value
         schema = {
-            "type": self.type.value,
+            "type": json_type,
             "description": self.description
         }
 
@@ -64,8 +71,16 @@ class FieldDefinition:
                 schema["enum"] = self.enum_values
 
         elif self.type == FieldType.ARRAY:
-            if self.array_item_type:
-                schema["items"] = {"type": self.array_item_type.value}
+            if self.array_tuple_fields:
+                schema["items"] = {
+                    "type": "array",
+                    "prefixItems": [item.to_json_schema() for item in self.array_tuple_fields],
+                    "minItems": len(self.array_tuple_fields),
+                    "maxItems": len(self.array_tuple_fields),
+                }
+            elif self.array_item_type:
+                item_type = "number" if self.array_item_type == FieldType.FLOAT else self.array_item_type.value
+                schema["items"] = {"type": item_type}
             elif self.array_item_schema:
                 schema["items"] = self.array_item_schema.to_json_schema()
             if self.min_length is not None:
@@ -75,7 +90,6 @@ class FieldDefinition:
 
         elif self.type == FieldType.ARRAY_OF_OBJECTS:
             if self.array_item_schema:
-                schema["type"] = "array"
                 schema["items"] = self.array_item_schema.to_json_schema()
 
         elif self.type == FieldType.OBJECT:
@@ -104,7 +118,7 @@ class FieldDefinition:
                 return False, f"Field '{self.name}' value must be one of {self.enum_values}"
 
         elif self.type == FieldType.INTEGER:
-            if not isinstance(value, int):
+            if isinstance(value, bool) or not isinstance(value, int):
                 return False, f"Field '{self.name}' should be integer type"
             if self.min_value is not None and value < self.min_value:
                 return False, f"Field '{self.name}' must not be less than {self.min_value}"
@@ -112,7 +126,7 @@ class FieldDefinition:
                 return False, f"Field '{self.name}' must not be greater than {self.max_value}"
 
         elif self.type == FieldType.FLOAT:
-            if not isinstance(value, (int, float)):
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
                 return False, f"Field '{self.name}' should be numeric type"
             if self.min_value is not None and value < self.min_value:
                 return False, f"Field '{self.name}' must not be less than {self.min_value}"
@@ -130,13 +144,30 @@ class FieldDefinition:
                 return False, f"Field '{self.name}' array length must not be less than {self.min_length}"
             if self.max_length and len(value) > self.max_length:
                 return False, f"Field '{self.name}' array length must not exceed {self.max_length}"
-            if self.array_item_type:
+            if self.array_tuple_fields:
+                for i, item in enumerate(value):
+                    if not isinstance(item, (list, tuple)):
+                        return False, f"Field '{self.name}[{i}]' should be tuple array type"
+                    if len(item) != len(self.array_tuple_fields):
+                        return False, (
+                            f"Field '{self.name}[{i}]' should contain exactly "
+                            f"{len(self.array_tuple_fields)} items"
+                        )
+                    for j, (item_value, item_definition) in enumerate(zip(item, self.array_tuple_fields)):
+                        is_valid, error = item_definition.validate(item_value)
+                        if not is_valid:
+                            return False, f"Field '{self.name}[{i}][{j}]': {error}"
+            elif self.array_item_type:
                 for i, item in enumerate(value):
                     if self.array_item_type == FieldType.STRING and not isinstance(item, str):
                         return False, f"Field '{self.name}[{i}]' should be string type"
-                    elif self.array_item_type == FieldType.INTEGER and not isinstance(item, int):
+                    elif self.array_item_type == FieldType.INTEGER and (
+                        isinstance(item, bool) or not isinstance(item, int)
+                    ):
                         return False, f"Field '{self.name}[{i}]' should be integer type"
-                    elif self.array_item_type == FieldType.FLOAT and not isinstance(item, (int, float)):
+                    elif self.array_item_type == FieldType.FLOAT and (
+                        isinstance(item, bool) or not isinstance(item, (int, float))
+                    ):
                         return False, f"Field '{self.name}[{i}]' should be numeric type"
 
         elif self.type == FieldType.ARRAY_OF_OBJECTS:

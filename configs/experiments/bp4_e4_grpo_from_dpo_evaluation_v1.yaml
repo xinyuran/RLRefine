@@ -1,0 +1,44 @@
+schema_version: structalign-bp4-e4-evaluation-v1
+work_package: E4_GRPO_FROM_DPO_EVALUATION
+
+inputs:
+  dpo_paired_packet: reports/bp4_reliability_repair/dpo/evaluation/dpo_paired_evaluation_packet.json
+  dpo_dev_predictions: reports/bp4_reliability_repair/dpo/evaluation/dev_predictions.jsonl
+  base_dev_evaluation: reports/bp4_controlled_matrix/base_v2/dev_evaluation.json
+  training_artifacts: reports/bp4_e4_grpo_from_dpo/grpo_training_artifacts.json
+
+evaluation:
+  selection:
+    path: data/canonical/keyword_v2/dev.jsonl
+    rows: 331
+  diagnostic:
+    path: data/canonical/keyword_v2/challenge.jsonl
+    rows: 140
+  forbidden_selection: frozen_human_gold
+  bootstrap_iterations: 10000
+  bootstrap_seed: 42
+  decoding:
+    do_sample: false
+    temperature: 0.0
+    max_new_tokens: 768
+    seed: 42
+
+research_gate:
+  macro_f1_delta_min: -0.01
+  macro_f1_ci_low_gt: -0.04
+  micro_f1_delta_min: -0.01
+  schema_valid_rate_min: 0.80
+  schema_valid_rate_delta_min: 0.03
+  hallucination_keyword_rate_max: 0.03
+  hallucination_keyword_rate_delta_max: 0.0
+  mean_output_tokens_ratio_max: 1.0
+  max_token_output_count_delta_max: 0
+
+deployment_gate:
+  schema_valid_rate_min: 0.90
+  hallucination_keyword_rate_max: 0.03
+  mean_output_tokens_vs_base_ratio_max: 1.0
+  max_token_output_count: 0
+
+outputs:
+  directory: reports/bp4_e4_grpo_from_dpo/evaluation

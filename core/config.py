@@ -4,6 +4,7 @@ Configuration system - Schema-based dynamic configuration
 import os
 from typing import Dict, List, Any, Optional
 from .schema import TaskSchema, ExtractionTask, SchemaRegistry
+from .keyword_contract import MAX_KEYWORD_LENGTH
 
 
 class Config:
@@ -60,12 +61,12 @@ class Config:
 
         self.enable_post_process = True
         self.post_process_top_n = 8
-        self.post_process_return_full_info = False
+        self.post_process_return_full_info = True
         self.post_process_filter_stopwords = True
         self.post_process_filter_time = True
         self.post_process_filter_date = True
         self.post_process_filter_long = True
-        self.post_process_max_keyword_length = 6
+        self.post_process_max_keyword_length = MAX_KEYWORD_LENGTH
         self.post_process_filter_not_in_original = True
 
         self.debug = os.getenv("DEBUG", "false").lower() == "true"

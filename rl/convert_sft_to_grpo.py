@@ -1,6 +1,6 @@
 """
 SFT to GRPO Data Format Conversion Tool
-Converts SFT-format data to GRPO format (only prompts needed, no responses)
+Converts SFT data to prompts plus a reference solution used by the reward function.
 
 Usage:
     python convert_sft_to_grpo.py --input_file sft_data.jsonl --output_file grpo_data.jsonl
@@ -20,7 +20,7 @@ def convert_sft_to_grpo(
     thinking_tag: str = "think",
     max_samples: int = None
 ) -> int:
-    print(f"\nReading SFT data: {input_file}")
+    print(json.dumps({"event": "conversion_start", "input_file": input_file}, ensure_ascii=False))
     all_samples = []
 
     with open(input_file, 'r', encoding='utf-8') as f:
@@ -43,7 +43,7 @@ def convert_sft_to_grpo(
         if converted:
             converted_samples.append(converted)
 
-    print(f"\nWriting GRPO data: {output_file}")
+    print(json.dumps({"event": "conversion_write", "output_file": output_file}, ensure_ascii=False))
     output_dir = os.path.dirname(output_file)
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
@@ -52,7 +52,13 @@ def convert_sft_to_grpo(
         for sample in converted_samples:
             f.write(json.dumps(sample, ensure_ascii=False) + '\n')
 
-    print(f"Conversion complete! Total {len(converted_samples)} samples")
+    print(json.dumps({
+        "event": "conversion_complete",
+        "input_rows": len(all_samples),
+        "output_rows": len(converted_samples),
+        "skipped_rows": len(all_samples) - len(converted_samples),
+        "rows_with_solution": sum(bool(item.get("solution")) for item in converted_samples)
+    }, ensure_ascii=False))
     return len(converted_samples)
 
 
@@ -77,7 +83,7 @@ def convert_single_sample(
         elif msg.get("role") == "assistant":
             original_response = msg.get("content", "")
 
-    if not user_prompt:
+    if not user_prompt or not original_response:
         return None
 
     grpo_sample = {
@@ -85,8 +91,15 @@ def convert_single_sample(
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
         ],
-        "original_response": original_response
+        "solution": original_response
     }
+
+    for metadata_key in (
+        "sample_id", "group_id", "source_line", "contract_version",
+        "split", "split_version"
+    ):
+        if metadata_key in sample:
+            grpo_sample[metadata_key] = sample[metadata_key]
 
     return grpo_sample
 

@@ -274,17 +274,25 @@ class RLRefineProcessor:
 
     def process_single(self, text: str, text_id: str = "unknown") -> Dict[str, Any]:
         """Process a single text"""
-        original_text = text
         text = self._preprocess_text(text)
 
         if not text or len(text.strip()) == 0:
-            return {"id": text_id, "data": None, "error": "Text is empty after preprocessing"}
+            return {
+                "id": text_id,
+                "status": "error",
+                "data": None,
+                "error_code": "empty_input",
+                "error": "Text is empty after preprocessing",
+                "fallback": False,
+            }
 
         system_prompt, user_prompt = self._get_prompts(text)
 
         retry_count = 0
         max_retries = self.config.max_retries
         parsed_data = None
+        last_validation_errors = []
+        last_failure_code = "extraction_failed"
 
         while retry_count <= max_retries and parsed_data is None:
             use_penalty = retry_count >= 2
@@ -292,6 +300,13 @@ class RLRefineProcessor:
 
             if response:
                 parsed_data = self._parse_response(response)
+                if parsed_data is not None and self.task and self.task.schema:
+                    is_valid, errors = self.task.schema.validate(parsed_data)
+                    if not is_valid:
+                        last_validation_errors = errors
+                        last_failure_code = "schema_validation_failed"
+                        logging.warning(f"Schema validation failed: {errors}")
+                        parsed_data = None
 
             if parsed_data is None:
                 retry_count += 1
@@ -302,18 +317,62 @@ class RLRefineProcessor:
             logging.warning(f"LLM extraction failed, activating fallback")
             fallback_data = self._fallback_extract(text)
             if fallback_data:
-                return {"id": text_id, "data": {"keywords": fallback_data}, "fallback": True}
-            return {"id": text_id, "data": None, "error": "Extraction failed"}
+                return self._finalize_result(
+                    {"keywords": fallback_data},
+                    text,
+                    text_id,
+                    fallback=True,
+                    primary_error_code=last_failure_code,
+                )
+            result = {
+                "id": text_id,
+                "status": "error",
+                "data": None,
+                "error_code": last_failure_code,
+                "error": "Extraction failed",
+                "fallback": False,
+            }
+            if last_validation_errors:
+                result["validation_errors"] = last_validation_errors
+            return result
+
+        return self._finalize_result(parsed_data, text, text_id, fallback=False)
+
+    def _finalize_result(
+        self,
+        parsed_data: Dict[str, Any],
+        source_text: str,
+        text_id: str,
+        fallback: bool,
+        primary_error_code: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Post-process once, then require the returned data to satisfy the task Schema."""
+        if self.config.enable_post_process:
+            parsed_data = self._post_process(parsed_data, source_text)
 
         if self.task and self.task.schema:
             is_valid, errors = self.task.schema.validate(parsed_data)
             if not is_valid:
-                logging.warning(f"Schema validation failed: {errors}")
+                logging.error(f"Final Schema validation failed: {errors}")
+                return {
+                    "id": text_id,
+                    "status": "error",
+                    "data": None,
+                    "error_code": "postprocess_schema_validation_failed",
+                    "error": "Final output failed Schema validation",
+                    "validation_errors": errors,
+                    "fallback": fallback,
+                }
 
-        if self.config.enable_post_process:
-            parsed_data = self._post_process(parsed_data, text)
-
-        return {"id": text_id, "data": parsed_data}
+        result = {
+            "id": text_id,
+            "status": "fallback" if fallback else "success",
+            "data": parsed_data,
+            "fallback": fallback,
+        }
+        if primary_error_code:
+            result["primary_error_code"] = primary_error_code
+        return result
 
     def _process_single_item(self, item: Dict) -> Dict:
         """Process a single data item (for multithreading)"""

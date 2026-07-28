@@ -21,10 +21,10 @@ export CUDA_VISIBLE_DEVICES=6,7
 export NPROC_PER_NODE=2
 
 # Model path
-MODEL_PATH="/data/home/ranxinyu/common_models/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28"
+MODEL_PATH="Qwen/Qwen2.5-7B-Instruct"
 
 # Dataset path (JSONL file)
-DATASET_PATH="/data/home/ranxinyu/project_rxy/llm_keyword_sft/sft_data_with_think_tags_jsonl_output/sft_all_merged.jsonl"
+DATASET_PATH="${DATASET_PATH:-data/sft_data_with_think_tags_jsonl_output/sft_all_merged.jsonl}"
 
 # Output directory
 OUTPUT_DIR="./output/sft"

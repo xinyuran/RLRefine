@@ -8,7 +8,7 @@ The generated data follows the prompt structure defined in prompt_template_3.py,
 which instructs the model to output a reasoning section followed by JSON.
 
 Usage:
-    1. Set your API credentials below (api_key, base_url)
+    1. Set OPENAI_API_KEY and OPENAI_BASE_URL in the environment
     2. Configure CSV_FILE_LIST with your data file paths
     3. Run: python generate_data_qwen3-max.py
 """
@@ -24,8 +24,8 @@ from core.preprocess import preprocess_comment, advanced_preprocess
 
 # ===================== Configuration =====================
 client = OpenAI(
-    api_key="your-api-key",
-    base_url="https://your-api-endpoint/v1",
+    api_key=os.environ["OPENAI_API_KEY"],
+    base_url=os.environ["OPENAI_BASE_URL"],
 )
 
 CSV_FILE_LIST = [

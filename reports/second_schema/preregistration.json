@@ -1,0 +1,50 @@
+{
+  "report_version": "second-schema-preregistration-v1",
+  "registered_on": "2026-07-28",
+  "decision": "RUN_EXACTLY_ONE_SECOND_SCHEMA_COMPARISON",
+  "purpose": "framework_adaptation_smoke_test_only",
+  "dataset": {
+    "domain": "synthetic_support_tickets",
+    "human_review_required_before_run": true,
+    "dev_rows": 120,
+    "frozen_test_rows": 100,
+    "challenge_rows": 20,
+    "challenge_diagnostic_only": true
+  },
+  "model": {
+    "role": "Base_only",
+    "model_id": "Qwen/Qwen2.5-7B-Instruct",
+    "revision": "a09a35458c702b33eeacc393d103063234e8bc28",
+    "keyword_e4_adapter_allowed": false,
+    "training_allowed": false
+  },
+  "arms": [
+    "base_unconstrained",
+    "base_strict_json_schema"
+  ],
+  "single_variable": "response_format_json_schema",
+  "concurrency": 4,
+  "decoding": {
+    "temperature": 0,
+    "seed": 42,
+    "max_tokens": 128
+  },
+  "primary_checks": {
+    "strict_test_schema_valid_rate_min": 0.99,
+    "strict_test_target_contract_valid_rate_min": 0.95,
+    "strict_test_intent_macro_f1_delta_vs_unconstrained_min": -0.03,
+    "strict_test_transport_error_count_max": 0
+  },
+  "reported_metrics": [
+    "intent_macro_f1",
+    "urgency_accuracy",
+    "evidence_exact_rate",
+    "evidence_source_faithfulness_rate",
+    "schema_valid_rate",
+    "target_contract_valid_rate",
+    "transport_error_count",
+    "wall_clock_latency_and_throughput"
+  ],
+  "stop_rule": "Report pass or fail after this comparison; do not tune, retrain, or add another matrix.",
+  "deployment_authorized": false
+}

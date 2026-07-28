@@ -1,0 +1,62 @@
+schema_version: structalign-bp3-reward-preferences-v1
+work_package: BP3_REWARD_V2_AND_PREFERENCE_DATA
+
+input:
+  dataset_version: keyword-v2.0.0
+  target_contract_version: keyword-json-target-v2
+  bp1_manifest:
+    path: data/canonical/keyword_v2/manifest.json
+    sha256: d3605c7a4ca2c3294d6022ce85e9511330f5bf581e63714fc1472f69c5d27c4b
+  train:
+    path: data/canonical/keyword_v2/train.jsonl
+    sha256: 6e31a66f715f4faea6d4a2d42042219977c09febd5900f70090cf5a9bb9a98e9
+    rows: 2360
+  dev:
+    path: data/canonical/keyword_v2/dev.jsonl
+    sha256: a73d294a92681c7fb1cea2c06f6cf09d376fe29b308eae1847f8d01b20079d4c
+    rows: 331
+  forbidden_gold:
+    path: data/canonical/keyword_v1/gold/v1/gold_test.jsonl
+    sha256: 0df4d88e8bc09d62f867ef8a4b43fe631ed9e357b79b55e022948f9b75e06bf6
+
+reward_v2:
+  plugin: rl/reward_builder_v2.py
+  registered_name: schema_based_reward_v2
+  invalid_json_reward: -1.0
+  invalid_schema_reward: -0.75
+  weights:
+    extraction_f1: 0.65
+    faithfulness: 0.15
+    atomicity: 0.10
+    count_calibration: 0.10
+  hallucination_penalty: 0.25
+
+attacks:
+  case_count: 50
+  per_type: 5
+  types:
+    - invalid_json
+    - markdown_wrapper
+    - extra_top_level_field
+    - string_confidence
+    - miscalibrated_confidence
+    - hallucination
+    - duplicate_keyword
+    - empty_keywords
+    - drop_keyword
+    - merge_atomicity
+
+output:
+  data_dir: data/derived/keyword_v2
+  report_dir: reports/bp3_keyword_v2
+  dpo_train: data/derived/keyword_v2/dpo_train.jsonl
+  dpo_dev: data/derived/keyword_v2/dpo_dev.jsonl
+  grpo_train: data/derived/keyword_v2/grpo_train.jsonl
+  grpo_dev: data/derived/keyword_v2/grpo_dev.jsonl
+  attack_cases: reports/bp3_keyword_v2/reward_attack_cases.jsonl
+  ablation: reports/bp3_keyword_v2/reward_v2_ablation.json
+  preference_gate: reports/bp3_keyword_v2/preference_gate.json
+  reward_gate: reports/bp3_keyword_v2/reward_v2_gate.json
+  manifest: reports/bp3_keyword_v2/bp3_manifest.json
+  gate: reports/bp3_keyword_v2/bp3_gate.json
+  feedback: reports/bp3_keyword_v2/bp3_feedback.json

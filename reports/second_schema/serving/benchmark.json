@@ -1,0 +1,170 @@
+{
+  "checks": {
+    "test_intent_macro_f1_within_0_03_of_unconstrained": true,
+    "test_no_transport_errors": true,
+    "test_schema_valid_rate_at_least_0_99": true,
+    "test_target_contract_valid_rate_at_least_0_95": true
+  },
+  "dataset_scope": "synthetic_human_verified_framework_adaptation_smoke_test",
+  "decision": "SECOND_SCHEMA_SMOKE_TEST_PASS",
+  "deployment_authorized": false,
+  "report_version": "second-schema-smoke-test-v1",
+  "results": {
+    "json_schema": {
+      "challenge": {
+        "e2e_p50_seconds": 0.2506751958280802,
+        "e2e_p95_seconds": 0.302810057066381,
+        "evidence_exact_rate": 0.3,
+        "evidence_source_faithfulness_rate": 0.95,
+        "intent_macro_f1": 0.9492063492063492,
+        "intent_per_class_f1": {
+          "account": 1.0,
+          "delivery": 0.888888888888889,
+          "other": 0.8571428571428571,
+          "product_quality": 1.0,
+          "refund": 1.0
+        },
+        "predictions_sha256": "fb37b44a90aff5e9ab30bc27e6047dca2f0ab74365d62165c6a586812995995e",
+        "sample_count": 20,
+        "schema_valid_rate": 1.0,
+        "target_contract_error_count": 1,
+        "target_contract_valid_rate": 0.95,
+        "throughput_output_tokens_per_wall_second": 340.2978723002044,
+        "transport_error_count": 0,
+        "ttft_p50_seconds": 0.035077592357993126,
+        "ttft_p95_seconds": 0.04287487920373678,
+        "urgency_accuracy": 0.6,
+        "wall_clock_seconds": 1.3341252971440554
+      },
+      "dev": {
+        "e2e_p50_seconds": 0.25543829519301653,
+        "e2e_p95_seconds": 0.3749063527211547,
+        "evidence_exact_rate": 0.25,
+        "evidence_source_faithfulness_rate": 1.0,
+        "intent_macro_f1": 0.8274986121608154,
+        "intent_per_class_f1": {
+          "account": 0.923076923076923,
+          "delivery": 0.9056603773584906,
+          "other": 0.45161290322580644,
+          "product_quality": 0.8571428571428571,
+          "refund": 1.0
+        },
+        "predictions_sha256": "f417c4b41c92c5980856f8f8b8e32f654ba6f8b92271d42aebd4447f048ca0f1",
+        "sample_count": 120,
+        "schema_valid_rate": 1.0,
+        "target_contract_error_count": 0,
+        "target_contract_valid_rate": 1.0,
+        "throughput_output_tokens_per_wall_second": 360.85804688866676,
+        "transport_error_count": 0,
+        "ttft_p50_seconds": 0.03245294373482466,
+        "ttft_p95_seconds": 0.04566673003137112,
+        "urgency_accuracy": 0.6416666666666667,
+        "wall_clock_seconds": 8.041943431831896
+      },
+      "test": {
+        "e2e_p50_seconds": 0.22695649694651365,
+        "e2e_p95_seconds": 0.3566138092428446,
+        "evidence_exact_rate": 0.39,
+        "evidence_source_faithfulness_rate": 0.99,
+        "intent_macro_f1": 0.8508103512407672,
+        "intent_per_class_f1": {
+          "account": 0.7843137254901961,
+          "delivery": 0.975609756097561,
+          "other": 0.5185185185185185,
+          "product_quality": 0.975609756097561,
+          "refund": 1.0
+        },
+        "predictions_sha256": "4a00429d6abf5e25cf7794ee7791374ebccb1dc8f05f31ab88d7e312f2b5163b",
+        "sample_count": 100,
+        "schema_valid_rate": 1.0,
+        "target_contract_error_count": 1,
+        "target_contract_valid_rate": 0.99,
+        "throughput_output_tokens_per_wall_second": 368.1895903157632,
+        "transport_error_count": 0,
+        "ttft_p50_seconds": 0.033109214156866074,
+        "ttft_p95_seconds": 0.04288732446730137,
+        "urgency_accuracy": 0.65,
+        "wall_clock_seconds": 6.051230286248028
+      }
+    },
+    "unconstrained": {
+      "challenge": {
+        "e2e_p50_seconds": 0.17353407200425863,
+        "e2e_p95_seconds": 0.2155452063307166,
+        "evidence_exact_rate": 0.3,
+        "evidence_source_faithfulness_rate": 0.95,
+        "intent_macro_f1": 0.9492063492063492,
+        "intent_per_class_f1": {
+          "account": 1.0,
+          "delivery": 0.888888888888889,
+          "other": 0.8571428571428571,
+          "product_quality": 1.0,
+          "refund": 1.0
+        },
+        "predictions_sha256": "59c9c22ea47688c710eccb1412257b604c6ea98f1c228ad36607ee6dc5324f02",
+        "sample_count": 20,
+        "schema_valid_rate": 1.0,
+        "target_contract_error_count": 1,
+        "target_contract_valid_rate": 0.95,
+        "throughput_output_tokens_per_wall_second": 479.8996631307253,
+        "transport_error_count": 0,
+        "ttft_p50_seconds": 0.027021626941859722,
+        "ttft_p95_seconds": 0.03683686628937721,
+        "urgency_accuracy": 0.6,
+        "wall_clock_seconds": 0.9460310870781541
+      },
+      "dev": {
+        "e2e_p50_seconds": 0.1910037389025092,
+        "e2e_p95_seconds": 0.2711400678381324,
+        "evidence_exact_rate": 0.25,
+        "evidence_source_faithfulness_rate": 1.0,
+        "intent_macro_f1": 0.8136927223719678,
+        "intent_per_class_f1": {
+          "account": 0.9056603773584906,
+          "delivery": 0.9056603773584906,
+          "other": 0.4,
+          "product_quality": 0.8571428571428571,
+          "refund": 1.0
+        },
+        "predictions_sha256": "7926cd86080d5f76844db2b1a593dccfebef9ecf0ae9e08362cc7da62ae3a008",
+        "sample_count": 120,
+        "schema_valid_rate": 1.0,
+        "target_contract_error_count": 0,
+        "target_contract_valid_rate": 1.0,
+        "throughput_output_tokens_per_wall_second": 486.44793672618954,
+        "transport_error_count": 0,
+        "ttft_p50_seconds": 0.029162820428609848,
+        "ttft_p95_seconds": 0.03795719891786575,
+        "urgency_accuracy": 0.6416666666666667,
+        "wall_clock_seconds": 5.965694950893521
+      },
+      "test": {
+        "e2e_p50_seconds": 0.17501063086092472,
+        "e2e_p95_seconds": 0.2044651135802269,
+        "evidence_exact_rate": 0.39,
+        "evidence_source_faithfulness_rate": 0.99,
+        "intent_macro_f1": 0.8508103512407672,
+        "intent_per_class_f1": {
+          "account": 0.7843137254901961,
+          "delivery": 0.975609756097561,
+          "other": 0.5185185185185185,
+          "product_quality": 0.975609756097561,
+          "refund": 1.0
+        },
+        "predictions_sha256": "1cdb82dd4bcde7579287dda375eb5be57cca793cff2b1a561b2dd5808a736e3e",
+        "sample_count": 100,
+        "schema_valid_rate": 1.0,
+        "target_contract_error_count": 1,
+        "target_contract_valid_rate": 0.99,
+        "throughput_output_tokens_per_wall_second": 497.2319502770873,
+        "transport_error_count": 0,
+        "ttft_p50_seconds": 0.027294636704027653,
+        "ttft_p95_seconds": 0.03787431214004755,
+        "urgency_accuracy": 0.65,
+        "wall_clock_seconds": 4.48080618865788
+      }
+    }
+  },
+  "status": "PASS",
+  "stop_rule_applied": true
+}

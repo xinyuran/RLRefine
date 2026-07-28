@@ -1,6 +1,6 @@
 # 脱敏训练数据样本
 
-本目录包含 RLRefine 三阶段训练中使用的数据格式示例（已脱敏）。
+本目录包含 StructAlign 三阶段训练中使用的数据格式示例（已脱敏）。
 
 ## 文件说明
 
@@ -8,7 +8,7 @@
 |------|--------|------|
 | `sft_sample.jsonl` | 2 条 | SFT 阶段训练数据格式 |
 | `dpo_sample.jsonl` | 2 条 | DPO 阶段偏好对数据格式 |
-| `grpo_sample.jsonl` | 2 条 | GRPO 阶段 prompt 数据格式（无 assistant 回复） |
+| `grpo_sample.jsonl` | 2 条 | GRPO 阶段 prompt + reward reference 数据格式 |
 
 ## 数据格式
 
@@ -48,18 +48,19 @@ assistant 回复由 Qwen3-Max 生成，包含"思考"推理段落和 JSON 输出
 
 ### GRPO 格式
 
-仅包含 system + user prompt，不含 assistant 回复（由模型自行生成）：
+`messages` 仅包含 system + user prompt；`solution` 保存 gold/reference，供奖励函数计算任务 F1，不会作为模型输入：
 
 ```json
 {
   "messages": [
     {"role": "system", "content": "..."},
     {"role": "user", "content": "..."}
-  ]
+  ],
+  "solution": "参考答案的思考与 JSON 输出"
 }
 ```
 
-GRPO 训练时模型对每个 prompt 生成多个 completion，由奖励函数评分后计算策略梯度。
+GRPO 训练时模型对每个 prompt 生成多个 completion，由奖励函数对照 `solution` 评分后计算策略梯度。训练前必须确认框架把该列传入 reward callable。
 
 ## 完整数据集
 

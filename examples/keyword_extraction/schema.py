@@ -13,6 +13,7 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 sys.path.insert(0, ROOT_DIR)
 
 from core.schema import TaskSchema, FieldDefinition, FieldType, ExtractionTask
+from core.keyword_contract import MAX_KEYWORD_LENGTH, MAX_KEYWORDS
 
 
 def create_keyword_schema() -> TaskSchema:
@@ -24,10 +25,26 @@ def create_keyword_schema() -> TaskSchema:
 
     schema.add_field(FieldDefinition(
         name="keywords",
-        type=FieldType.ARRAY_OF_OBJECTS,
+        type=FieldType.ARRAY,
         description="Extracted keyword list, each element format: [category, keyword_text, confidence]",
         required=True,
-        array_item_schema=None
+        min_length=1,
+        max_length=MAX_KEYWORDS,
+        array_tuple_fields=[
+            FieldDefinition(name="category", type=FieldType.STRING, min_length=1),
+            FieldDefinition(
+                name="keyword_text",
+                type=FieldType.STRING,
+                min_length=1,
+                max_length=MAX_KEYWORD_LENGTH,
+            ),
+            FieldDefinition(
+                name="confidence",
+                type=FieldType.FLOAT,
+                min_value=0.0,
+                max_value=1.0,
+            ),
+        ],
     ))
 
     schema.add_field(FieldDefinition(

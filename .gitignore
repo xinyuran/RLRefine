@@ -1,120 +1,102 @@
-# Byte-compiled / optimized / DLL files
+# Python caches and build artifacts
 __pycache__/
 *.py[cod]
 *$py.class
-*.pyc
-*.pyo
 *.so
-
-# 忽略 ignore_files 文件夹下的所有文件和子文件夹
-ignore_files/
-
-# Jupyter Notebook
-.ipynb_checkpoints/
-*.ipynb_checkpoints
-
-# Distribution / packaging
 .Python
 build/
-develop-eggs/
 dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
 *.egg
 *.egg-info/
-.installed.cfg
-*.manifest
-*.spec
+.eggs/
+wheels/
 
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-.pytest_cache/
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-
-# Translations
-*.mo
-*.pot
-
-# Environments
+# Virtual environments and local configuration
 .env
-.env.local
-.env.*.local
-.venv
+.env.*
+!.env.example
+!examples/**/.env.example
+.venv/
 env/
 venv/
 ENV/
-env.bak/
-venv.bak/
 
-# IDE
+# Test, type-checker, and notebook caches
+.cache/
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.tox/
+.nox/
+.mypy_cache/
+.dmypy.json
+.ipynb_checkpoints/
+
+# Editors, OS files, and local agent configuration
 .idea/
 .vscode/
+.claude/
+.agents/
+.DS_Store
+Thumbs.db
 *.swp
 *.swo
 *.swn
 *~
 
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
+# Logs and temporary runtime files
+*.log
+logs/
+new_plan/
+pip-log.txt
+pip-delete-this-directory.txt
+*.tmp
+*.temp
 
-# ruff
-ruff.toml
+# Personal notes and local handoff material
+ignore_files/
+HANDOFF.md
+EXPERIENCE.md
 
-# Lock files
+# Private credentials and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+credentials*.json
+secrets*.json
+
+# Model weights and training outputs
+checkpoint-*/
+checkpoint-*-merged/
+output/
+outputs/
+rl/output/
+*.safetensors
+*.ckpt
+*.pth
+*.pt
+*.gguf
+
+# Raw, generated, and duplicated training data. The small reviewed synthetic
+# second-Schema dataset is intentionally published for reproducibility.
+data/*
+!data/frozen/
+!data/frozen/intent_routing_v1/
+!data/frozen/intent_routing_v1/**
+data_zip/
+rl/data/
+
+# Local or historical audit bundles. Only the sanitized second-Schema result
+# package is published.
+reports/*
+!reports/second_schema/
+!reports/second_schema/**
+reports/second_schema/*.log
+
+# Local lock files (the project currently uses requirements*.txt)
 pdm.lock
 uv.lock
 poetry.lock
 Pipfile.lock
-
-# Logs
-logs/*.log
-!logs/.gitkeep
-*.log
-
-# Project specific
-.pyf
-
-# RL 训练数据（体量大，不上传）
-rl/data/
-
-# RL 训练日志（含私有路径信息，不上传）
-rl/train_logs/
-
-# RL 训练输出（模型权重，体量极大）
-rl/output/
-output/
-checkpoint-924-merged/
-
-# Markdown files - ignore all except specific files
-*.md
-!README.md
-!README_CN.md
-!README_EN.md
-!MODEL_CARD.md
-!CONFIGURATION.md
-!docs/evaluation.md
-!docs/reward_design.md
-!docs/training_details.md
-!examples/keyword_extraction/README.md
-!examples/sample_data/README.md
