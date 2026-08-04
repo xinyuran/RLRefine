@@ -95,6 +95,12 @@ available on Hugging Face:
 It targets keyword extraction from Chinese e-commerce reviews and can be used
 to try or reproduce the inference workflow below.
 
+The synthetic post-training data associated with the published
+`checkpoint-924` model are also available:
+[`xinyuran/RLRefine-Dataset`](https://huggingface.co/datasets/xinyuran/RLRefine-Dataset).
+The dataset provides `sft`, `dpo`, and `grpo` configurations while preserving
+the original training-data distribution.
+
 Install the optional GPU training and serving stack:
 
 ```bash
@@ -269,8 +275,9 @@ tests/       Core schema, inference, and reward tests
 - Offline metrics and single-host serving benchmarks are not production SLOs.
 - Model weights, complete training datasets, internal evaluation reports, and
   production deployment configuration are not stored directly in the GitHub
-  repository. The public merged weights are hosted separately on the Hugging
-  Face model page linked above.
+  repository. The public merged weights and corresponding synthetic
+  post-training data are hosted separately on the Hugging Face model and
+  dataset pages linked above.
 
 ## License
 

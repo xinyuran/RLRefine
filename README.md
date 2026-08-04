@@ -81,6 +81,10 @@ python -m unittest discover -v tests
 [`xinyuran/Qwen2.5-7B-RLRefine`](https://huggingface.co/xinyuran/Qwen2.5-7B-RLRefine)。
 该模型面向中文电商评论关键词抽取，可用于体验和复现下方的推理流程。
 
+该公开 `checkpoint-924` 模型对应的合成后训练数据也已发布：
+[`xinyuran/RLRefine-Dataset`](https://huggingface.co/datasets/xinyuran/RLRefine-Dataset)。
+数据集提供 `sft`、`dpo` 和 `grpo` 三种配置，并保留模型训练时的原始数据分布。
+
 安装 GPU 训练与服务依赖：
 
 ```bash
@@ -238,7 +242,7 @@ tests/       核心 Schema、推理与 Reward 测试
 - 确定性修复只能处理规则明确的错误，不能替代人工复核。
 - 离线指标和单机服务基准不等同于生产环境 SLO。
 - GitHub 仓库不直接包含模型权重、完整训练数据、内部评测报告或生产部署配置；公开合并
-  权重单独托管在上述 Hugging Face 模型页。
+  权重与对应合成后训练数据分别托管在上述 Hugging Face 模型页和数据集页面。
 
 ## License
 
