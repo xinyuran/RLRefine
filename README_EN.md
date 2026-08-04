@@ -89,6 +89,12 @@ python -m unittest discover -v tests
 
 ## Model Serving
 
+A merged model produced by the project's three-stage post-training pipeline is
+available on Hugging Face:
+[`xinyuran/Qwen2.5-7B-RLRefine`](https://huggingface.co/xinyuran/Qwen2.5-7B-RLRefine).
+It targets keyword extraction from Chinese e-commerce reviews and can be used
+to try or reproduce the inference workflow below.
+
 Install the optional GPU training and serving stack:
 
 ```bash
@@ -98,7 +104,7 @@ python -m pip install -r requirements-training.txt
 Start an OpenAI-compatible vLLM server:
 
 ```bash
-bash scripts/run_vllm.sh 0 8001 /path/to/model
+bash scripts/run_vllm.sh 0 8001 xinyuran/Qwen2.5-7B-RLRefine
 ```
 
 Configure and run the keyword-extraction example:
@@ -261,8 +267,10 @@ tests/       Core schema, inference, and reward tests
 - Deterministic repair only covers errors with explicit rules and does not
   replace human review.
 - Offline metrics and single-host serving benchmarks are not production SLOs.
-- Model weights, training datasets, internal evaluation reports, and production
-  deployment configuration are not included.
+- Model weights, complete training datasets, internal evaluation reports, and
+  production deployment configuration are not stored directly in the GitHub
+  repository. The public merged weights are hosted separately on the Hugging
+  Face model page linked above.
 
 ## License
 

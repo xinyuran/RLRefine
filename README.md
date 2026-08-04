@@ -77,6 +77,10 @@ python -m unittest discover -v tests
 
 ## 连接模型服务
 
+本项目三阶段后训练流程产出的公开合并模型可从 Hugging Face 获取：
+[`xinyuran/Qwen2.5-7B-RLRefine`](https://huggingface.co/xinyuran/Qwen2.5-7B-RLRefine)。
+该模型面向中文电商评论关键词抽取，可用于体验和复现下方的推理流程。
+
 安装 GPU 训练与服务依赖：
 
 ```bash
@@ -86,7 +90,7 @@ python -m pip install -r requirements-training.txt
 启动一个 OpenAI-compatible vLLM 服务：
 
 ```bash
-bash scripts/run_vllm.sh 0 8001 /path/to/model
+bash scripts/run_vllm.sh 0 8001 xinyuran/Qwen2.5-7B-RLRefine
 ```
 
 复制并修改环境变量：
@@ -233,7 +237,8 @@ tests/       核心 Schema、推理与 Reward 测试
 - 客服工单路由数据是小规模模板合成数据，不代表真实客服流量表现。
 - 确定性修复只能处理规则明确的错误，不能替代人工复核。
 - 离线指标和单机服务基准不等同于生产环境 SLO。
-- 仓库不包含模型权重、训练数据、内部评测报告或生产部署配置。
+- GitHub 仓库不直接包含模型权重、完整训练数据、内部评测报告或生产部署配置；公开合并
+  权重单独托管在上述 Hugging Face 模型页。
 
 ## License
 
