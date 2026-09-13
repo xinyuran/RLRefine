@@ -1,3 +1,5 @@
+
+
 # RLRefine
 
 [English](README_EN.md) | 简体中文
@@ -97,7 +99,9 @@ python -m pip install -r requirements-training.txt
 bash scripts/run_vllm.sh 0 8001 xinyuran/Qwen2.5-7B-RLRefine
 ```
 
-复制并修改环境变量：
+复制并修改环境变量。运行示例前，请将 `.env` 中的 `VLLM_BASE_URL`
+设置为 `http://localhost:8001/v1`，并将 `MODEL_NAME` 设置为
+`xinyuran/Qwen2.5-7B-RLRefine`：
 
 ```bash
 cp examples/keyword_extraction/.env.example examples/keyword_extraction/.env
