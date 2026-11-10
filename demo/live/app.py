@@ -96,7 +96,7 @@ with gr.Blocks(title="RLRefine · Live model demo", analytics_enabled=False) as 
 [中文文档](https://github.com/xinyuran/RLRefine/blob/main/README_CN.md)
 
 Runs the published RLRefine model on shared ZeroGPU. Queues and daily quotas apply.
-Your review is sent to this Hugging Face Space for inference; the app does not save it.
+Your review is sent to this Hugging Face Space for inference. Gradio may retain run history in your browser.
 """)
     with gr.Row():
         with gr.Column(scale=1):

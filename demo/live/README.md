@@ -56,8 +56,9 @@ from the pinned public Hugging Face revision on startup.
 - One inference at a time, with up to 8 queued requests.
 - ZeroGPU queues and per-visitor daily quotas apply. The first visit may wait
   for a sleeping Space to start.
-- Reviews are sent to this Space for inference. The application does not save
-  inputs, outputs or user analytics.
+- Reviews are sent to this Space for inference. Gradio may retain run history
+  in the visitor's browser; the application does not implement its own history
+  database or user analytics.
 - Contract validity is not task accuracy. Scores are model-generated values,
   not calibrated probabilities. This deployment is not a new quality benchmark.
 
