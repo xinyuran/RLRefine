@@ -3,7 +3,7 @@
 The full English README is now the [repository homepage](README.md).
 
 - [简体中文](README_CN.md)
-- [Contract playground](demo/README.md)
+- [Contract playground](https://huggingface.co/spaces/xinyuran/RLRefine-Playground)
 - [Usage](docs/usage.md)
 - [Training recipes](docs/training.md)
 - [Evaluation and reproducibility](docs/evaluation.md)

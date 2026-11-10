@@ -9,12 +9,13 @@
 [![MIT License](https://img.shields.io/badge/license-MIT-176b61)](LICENSE)
 [![Model](https://img.shields.io/badge/Hugging_Face-model-ffd21e)](https://huggingface.co/xinyuran/Qwen2.5-7B-RLRefine)
 [![Dataset](https://img.shields.io/badge/Hugging_Face-dataset-ffd21e)](https://huggingface.co/datasets/xinyuran/RLRefine-Dataset)
+[![Demo](https://img.shields.io/badge/demo-contract_playground-176b61)](https://huggingface.co/spaces/xinyuran/RLRefine-Playground)
 
 RLRefine 是面向大语言模型结构化抽取的 Python 工具包，主要示例为中文电商评论关键词
 抽取。项目将任务 Schema、推理校验与 SFT → DPO → GRPO 后训练奖励连接起来，帮助使用者
 分别检查输出结构和明确的原文约束。
 
-**[体验合约校验台](demo/README.md)** · [运行模型](#运行模型抽取) ·
+**[体验合约校验台](https://huggingface.co/spaces/xinyuran/RLRefine-Playground)** · [运行模型](#运行模型抽取) ·
 [评测与复现范围](docs/evaluation.md) · [训练配置](docs/training.md)
 
 ![RLRefine 示意流程：中文评论、关键词 JSON、结构与原文校验。此图为手写示例，不是实时推理。](assets/readme-preview.svg)

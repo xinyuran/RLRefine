@@ -6,7 +6,7 @@
 
 | Goal | Entry point | Requires a model? |
 |---|---|---|
-| Explore JSON and source constraints | [Contract playground](../demo/README.md) | No |
+| Explore JSON and source constraints | [Online playground](https://huggingface.co/spaces/xinyuran/RLRefine-Playground) · [Run locally](../demo/README.md) | No |
 | Check the Python installation | `python -m scripts.contract_quickstart` | No |
 | Extract keywords from reviews | `python examples/keyword_extraction/run.py` | Yes |
 | Define a fixed-field task | [Ticket-routing schema](../examples/intent_routing/README.md) | Only for generation |

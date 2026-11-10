@@ -9,13 +9,14 @@ English · [简体中文](README_CN.md)
 [![MIT License](https://img.shields.io/badge/license-MIT-176b61)](LICENSE)
 [![Model](https://img.shields.io/badge/Hugging_Face-model-ffd21e)](https://huggingface.co/xinyuran/Qwen2.5-7B-RLRefine)
 [![Dataset](https://img.shields.io/badge/Hugging_Face-dataset-ffd21e)](https://huggingface.co/datasets/xinyuran/RLRefine-Dataset)
+[![Demo](https://img.shields.io/badge/demo-contract_playground-176b61)](https://huggingface.co/spaces/xinyuran/RLRefine-Playground)
 
 RLRefine is a Python toolkit for structured LLM extraction, with Chinese
 e-commerce review keywords as its main example. It connects task schemas,
 inference validation and SFT → DPO → GRPO rewards, so you can inspect both
 output structure and explicit source constraints.
 
-**[Try the contract playground](demo/README.md)** ·
+**[Try the contract playground](https://huggingface.co/spaces/xinyuran/RLRefine-Playground)** ·
 [Run model inference](#run-model-inference) ·
 [Evaluation](docs/evaluation.md) ·
 [Training recipes](docs/training.md)
