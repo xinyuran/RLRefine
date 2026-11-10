@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-labelledby="title desc">
+  <title id="title">RLRefine — schema-driven extraction and source-grounded validation</title>
+  <desc id="desc">A warm off-white launch card showing a Chinese review transformed into validated JSON keywords. The example is illustrative and does not run live inference.</desc>
+  <defs>
+    <linearGradient id="wash" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FBF8F1"/>
+      <stop offset="1" stop-color="#F1EEE6"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#12283D" flood-opacity="0.12"/>
+    </filter>
+  </defs>
+  <rect width="1280" height="640" fill="url(#wash)"/>
+  <circle cx="1160" cy="-20" r="210" fill="#D9EEE9" opacity="0.7"/>
+  <circle cx="60" cy="650" r="150" fill="#E6DCCB" opacity="0.72"/>
+
+  <g transform="translate(78 78)">
+    <rect width="78" height="78" rx="22" fill="#12283D"/>
+    <path d="M23 48c0-14 11-25 25-25h7c8 0 15 3 20 9l-11 10c-3-4-7-6-12-6h-4c-7 0-12 5-12 12v4c0 7 5 12 12 12h4c5 0 9-2 12-6l11 10c-5 6-12 9-20 9h-7c-14 0-25-11-25-25z" fill="#8BD3C7"/>
+  </g>
+  <text x="180" y="112" fill="#12283D" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="54" font-weight="700" letter-spacing="-1">RLRefine</text>
+  <text x="180" y="154" fill="#4B6170" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="21">结构化抽取 · 可验证输出</text>
+
+  <g transform="translate(82 232)">
+    <rect width="482" height="224" rx="26" fill="#12283D"/>
+    <text x="34" y="54" fill="#8BD3C7" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="16" font-weight="700" letter-spacing="2">SCHEMA-DRIVEN EXTRACTION</text>
+    <text x="34" y="103" fill="#FBF8F1" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="34" font-weight="700">Schema-driven extraction.</text>
+    <text x="34" y="146" fill="#FBF8F1" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="30" font-weight="700">Source-grounded validation.</text>
+    <rect x="34" y="176" width="242" height="26" rx="13" fill="#20445A"/>
+    <text x="48" y="194" fill="#D9EEE9" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="14">SFT → DPO → GRPO  ·  contracts</text>
+  </g>
+
+  <g transform="translate(620 70)" filter="url(#shadow)">
+    <rect width="578" height="500" rx="30" fill="#FFFFFF"/>
+    <rect width="578" height="10" rx="5" fill="#4FB3A3"/>
+    <text x="38" y="56" fill="#657985" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="15" font-weight="700" letter-spacing="1.5">ILLUSTRATIVE EXAMPLE · NO LIVE INFERENCE</text>
+    <text x="38" y="101" fill="#12283D" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="22" font-weight="700">输入评论</text>
+    <rect x="38" y="120" width="502" height="76" rx="16" fill="#F1F6F4"/>
+    <text x="60" y="166" fill="#244354" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="27">包装很好，屏幕清晰。</text>
+    <path d="M286 210v28" stroke="#4FB3A3" stroke-width="3" stroke-linecap="round"/>
+    <path d="M276 230l10 10 10-10" fill="none" stroke="#4FB3A3" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="38" y="286" fill="#12283D" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="22" font-weight="700">结构化 JSON</text>
+    <rect x="38" y="304" width="502" height="136" rx="16" fill="#12283D"/>
+    <text x="60" y="338" fill="#A6E1D6" font-family="DejaVu Sans Mono, Consolas, monospace" font-size="18">{ "keywords": [</text>
+    <text x="79" y="369" fill="#FBF8F1" font-family="DejaVu Sans Mono, Consolas, monospace" font-size="17">["包装", 0.96], ["屏幕", 0.94],</text>
+    <text x="79" y="398" fill="#FBF8F1" font-family="DejaVu Sans Mono, Consolas, monospace" font-size="17">["清晰", 0.91] ] }</text>
+    <g transform="translate(38 460)">
+      <rect width="144" height="26" rx="13" fill="#D9EEE9"/>
+      <text x="16" y="18" fill="#17665D" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="14" font-weight="700">✓ source grounded</text>
+      <rect x="156" width="126" height="26" rx="13" fill="#EDE7DA"/>
+      <text x="172" y="18" fill="#725E3E" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="14" font-weight="700">✓ schema checked</text>
+    </g>
+  </g>
+</svg>

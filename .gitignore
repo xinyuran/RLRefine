@@ -86,10 +86,14 @@ rl/data/
 
 # Local research documentation, reports, configurations, and evaluation code
 PROJECT_STATUS.md
-README_CN.md
 configs/
-docs/
-evaluation/
+docs/*
+!docs/usage.md
+!docs/training.md
+!docs/evaluation.md
+evaluation/*
+!evaluation/__init__.py
+!evaluation/keyword_evaluator.py
 reports/
 
 # Keep the public repository focused on the runnable core. These files remain
@@ -107,6 +111,8 @@ tests/*
 !tests/test_processor_contract.py
 !tests/test_reward_builder.py
 !tests/test_reward_builder_v2.py
+!tests/test_demo_contract.py
+!tests/test_keyword_evaluator.py
 
 prompts/prompt_template_4.py
 prompts/prompt_template_4_short.py

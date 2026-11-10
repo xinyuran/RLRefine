@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Explore RLRefine's keyword contract: check JSON structure, source grounding, duplicates and confidence types in your browser.">
+  <meta name="color-scheme" content="light">
+  <title>RLRefine · Contract Playground</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="app.mjs"></script>
+</head>
+<body>
+  <a class="skip" href="#playground">Skip to playground</a>
+  <div class="page">
+    <header>
+      <a class="brand" href="https://github.com/xinyuran/RLRefine"><span class="brand-icon" aria-hidden="true">R</span>RLRefine</a>
+      <nav aria-label="Project links">
+        <a href="https://github.com/xinyuran/RLRefine">GitHub ↗</a>
+        <a href="https://huggingface.co/xinyuran/Qwen2.5-7B-RLRefine">Model ↗</a>
+        <a href="https://huggingface.co/datasets/xinyuran/RLRefine-Dataset">Dataset ↗</a>
+      </nav>
+    </header>
+    <main>
+      <section class="hero" aria-labelledby="title">
+        <p class="eyebrow">SCHEMA-DRIVEN EXTRACTION / CONTRACT PLAYGROUND</p>
+        <h1 id="title">Trace every keyword<br>back to the source.</h1>
+        <p class="intro">Explore the rules behind structured extraction. Edit a Chinese review and its JSON output, then inspect structure, source matches and validation errors.</p>
+        <p class="mode"><span aria-hidden="true">●</span> Browser-only validation · No model inference · No API key</p>
+      </section>
+      <section id="playground" aria-label="Keyword contract playground">
+        <div class="example-bar">
+          <label for="example">Start with an example</label>
+          <select id="example">
+            <option value="valid">01 / Valid structure &amp; source matches</option>
+            <option value="format">02 / String confidence &amp; duplicate</option>
+            <option value="source">03 / Valid JSON, unsupported keyword</option>
+            <option value="historical">04 / Historical base-model excerpt</option>
+          </select>
+          <button id="reset" class="secondary" type="button">Reset example</button>
+        </div>
+        <p id="provenance" class="caption"></p>
+        <div class="workspace">
+          <section class="panel editor">
+            <div class="panel-heading"><h2><span>01</span> Source &amp; output</h2><span class="tag">EDITABLE</span></div>
+            <label for="source">Source review / 原文</label>
+            <textarea id="source" rows="3" maxlength="10000" lang="zh-CN" spellcheck="false"></textarea>
+            <label for="payload">Keyword JSON / 模型输出格式</label>
+            <textarea id="payload" class="code" rows="13" maxlength="50000" spellcheck="false" aria-describedby="format-help"></textarea>
+            <p id="format-help" class="caption">Each item: [explanation, keyword, numeric confidence]. Examples are editable; no model is called.</p>
+            <button id="validate" class="primary" type="button">Validate output <span aria-hidden="true">→</span></button>
+          </section>
+          <section class="panel result" aria-labelledby="result-title">
+            <div class="panel-heading"><h2 id="result-title"><span>02</span> Inspect the contract</h2><span class="tag">LOCAL</span></div>
+            <div id="status" role="status" aria-live="polite"></div>
+            <dl class="checks">
+              <div><dt>JSON parsing</dt><dd id="json-status">—</dd></div>
+              <div><dt>Structure &amp; field rules</dt><dd id="structure-status">—</dd></div>
+              <div><dt>Source matching &amp; uniqueness</dt><dd id="source-status">—</dd></div>
+            </dl>
+            <h3>Keywords in context</h3>
+            <div id="highlight" class="highlight" lang="zh-CN"></div>
+            <div id="keywords" class="keywords" aria-label="Keyword matches"></div>
+            <h3>Validation details</h3>
+            <ul id="errors" class="errors"></ul>
+            <p class="caption">Matching the source does not establish relevance, completeness or calibrated confidence. This checks explicit rules only.</p>
+          </section>
+        </div>
+      </section>
+      <section class="explanation" aria-labelledby="next-title">
+        <div><p class="eyebrow">FROM RULES TO MODELS</p><h2 id="next-title">One contract.<br>A clearer failure signal.</h2></div>
+        <div>
+          <p>RLRefine connects task schemas, inference validation and post-training rewards. The keyword contract checks 1–15 entries, 1–4-character source substrings, tuple shape, numeric confidence and duplicates.</p>
+          <p>Try changing <code>屏幕</code> to <code>续航</code> in the first example: the JSON still parses, but the keyword is absent from the review.</p>
+          <a class="text-link" href="https://github.com/xinyuran/RLRefine#run-model-inference">Run model inference locally →</a>
+          <a class="text-link" href="https://github.com/xinyuran/RLRefine/blob/main/README_CN.md">阅读中文文档 →</a>
+        </div>
+      </section>
+    </main>
+    <footer><p>RLRefine · MIT License</p><p>Your input stays in this page. No storage, analytics or inference requests.</p><a href="https://github.com/xinyuran/RLRefine">Explore the code / Star on GitHub ↗</a></footer>
+  </div>
+</body>
+</html>

@@ -20,7 +20,7 @@
 启动 OpenAI-compatible 模型服务：
 
 ```bash
-vllm serve Qwen/Qwen2.5-7B-Instruct --port 8000
+bash scripts/run_vllm.sh 0 8001 xinyuran/Qwen2.5-7B-RLRefine
 ```
 
 配置并运行示例：
@@ -29,6 +29,10 @@ vllm serve Qwen/Qwen2.5-7B-Instruct --port 8000
 cp examples/keyword_extraction/.env.example examples/keyword_extraction/.env
 python examples/keyword_extraction/run.py
 ```
+
+环境文件默认指向 `http://localhost:8001/v1` 和
+`xinyuran/Qwen2.5-7B-RLRefine`。如果使用其他模型或服务，先同步修改端口与模型名。
+Linux/CUDA 依赖安装、PowerShell 命令和返回状态说明见 [使用指南](../../docs/usage.md)。
 
 ## 文件说明
 

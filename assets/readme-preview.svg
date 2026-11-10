@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="540" viewBox="0 0 1200 540" role="img" aria-labelledby="title desc">
+  <title id="title">RLRefine extraction flow</title>
+  <desc id="desc">An illustrative flow from a Chinese review to structured JSON and two validation checks: source grounding and schema validity.</desc>
+  <defs>
+    <filter id="cardShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#12283D" flood-opacity="0.10"/>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4FB3A3"/>
+    </marker>
+  </defs>
+  <rect width="1200" height="540" rx="28" fill="#FBF8F1"/>
+  <text x="56" y="66" fill="#12283D" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="30" font-weight="700">One contract, from prompt to checked output</text>
+  <text x="56" y="98" fill="#657985" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="16">RLRefine keeps syntax, source faithfulness, and task semantics visible at the same boundary.</text>
+
+  <g transform="translate(56 144)" filter="url(#cardShadow)">
+    <rect width="302" height="290" rx="22" fill="#FFFFFF"/>
+    <rect width="302" height="8" rx="4" fill="#E1B66D"/>
+    <text x="28" y="52" fill="#8D6A35" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" letter-spacing="1.5">01 · INPUT</text>
+    <text x="28" y="96" fill="#12283D" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="21" font-weight="700">原文评论</text>
+    <rect x="28" y="120" width="246" height="82" rx="14" fill="#F7F2E8"/>
+    <text x="45" y="157" fill="#244354" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="21">包装很好，</text>
+    <text x="45" y="187" fill="#244354" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="21">屏幕清晰。</text>
+    <text x="28" y="244" fill="#657985" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="15">用户提供一段可追溯的来源文本</text>
+  </g>
+
+  <path d="M376 289h62" stroke="#4FB3A3" stroke-width="4" marker-end="url(#arrow)"/>
+  <text x="376" y="267" fill="#4B8178" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="14" font-weight="700">schema + prompt</text>
+
+  <g transform="translate(448 144)" filter="url(#cardShadow)">
+    <rect width="340" height="290" rx="22" fill="#12283D"/>
+    <rect width="340" height="8" rx="4" fill="#8BD3C7"/>
+    <text x="28" y="52" fill="#8BD3C7" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" letter-spacing="1.5">02 · STRUCTURED OUTPUT</text>
+    <text x="28" y="96" fill="#FBF8F1" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="21" font-weight="700">JSON 关键词</text>
+    <text x="28" y="137" fill="#A6E1D6" font-family="DejaVu Sans Mono, Consolas, monospace" font-size="17">{ "keywords": [</text>
+    <text x="45" y="171" fill="#FBF8F1" font-family="DejaVu Sans Mono, Consolas, monospace" font-size="16">["包装", 0.96],</text>
+    <text x="45" y="202" fill="#FBF8F1" font-family="DejaVu Sans Mono, Consolas, monospace" font-size="16">["屏幕", 0.94],</text>
+    <text x="45" y="233" fill="#FBF8F1" font-family="DejaVu Sans Mono, Consolas, monospace" font-size="16">["清晰", 0.91] ] }</text>
+    <text x="28" y="267" fill="#B6C8CE" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="14">类型、数量、长度可被统一约束</text>
+  </g>
+
+  <path d="M806 289h62" stroke="#4FB3A3" stroke-width="4" marker-end="url(#arrow)"/>
+  <text x="804" y="267" fill="#4B8178" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="14" font-weight="700">validate + repair</text>
+
+  <g transform="translate(878 144)" filter="url(#cardShadow)">
+    <rect width="266" height="290" rx="22" fill="#FFFFFF"/>
+    <rect width="266" height="8" rx="4" fill="#4FB3A3"/>
+    <text x="28" y="52" fill="#287E72" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" letter-spacing="1.5">03 · CONTRACT CHECKS</text>
+    <text x="28" y="96" fill="#12283D" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="21" font-weight="700">可解释状态</text>
+    <rect x="28" y="124" width="210" height="48" rx="14" fill="#E8F5F1"/>
+    <circle cx="52" cy="148" r="10" fill="#4FB3A3"/>
+    <path d="M47 148l4 4 7-8" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="72" y="154" fill="#17665D" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">source grounded</text>
+    <rect x="28" y="188" width="210" height="48" rx="14" fill="#F3EDE2"/>
+    <circle cx="52" cy="212" r="10" fill="#C69245"/>
+    <path d="M47 212l4 4 7-8" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="72" y="218" fill="#725E3E" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">schema valid</text>
+    <text x="28" y="272" fill="#657985" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="14">失败可重试、修复或人工复核</text>
+  </g>
+
+  <text x="56" y="490" fill="#657985" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="14">Illustrative example · no live inference</text>
+  <text x="1144" y="490" text-anchor="end" fill="#657985" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="14">SFT → DPO → GRPO</text>
+</svg>

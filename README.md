@@ -1,66 +1,78 @@
 # RLRefine
 
-[English](README_EN.md) | 简体中文
+**Schema-driven extraction. Source-grounded validation.**
 
-面向大语言模型的 Schema 驱动结构化信息抽取工具包。
+English · [简体中文](README_CN.md)
 
-RLRefine 将任务定义、推理约束、后训练奖励和输出校验统一到同一份 Schema 与语义
-合约中，帮助模型稳定输出可解析、可验证的结构化结果。仓库以中文电商评论关键词抽取
-为主要示例，同时提供客服工单路由示例，展示如何在不重写核心流程的情况下适配新的
-输出结构。
+[![Tests](https://github.com/xinyuran/RLRefine/actions/workflows/tests.yml/badge.svg)](https://github.com/xinyuran/RLRefine/actions/workflows/tests.yml)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-3776AB)](docs/usage.md)
+[![MIT License](https://img.shields.io/badge/license-MIT-176b61)](LICENSE)
+[![Model](https://img.shields.io/badge/Hugging_Face-model-ffd21e)](https://huggingface.co/xinyuran/Qwen2.5-7B-RLRefine)
+[![Dataset](https://img.shields.io/badge/Hugging_Face-dataset-ffd21e)](https://huggingface.co/datasets/xinyuran/RLRefine-Dataset)
 
-## 核心能力
+RLRefine is a Python toolkit for structured LLM extraction, with Chinese
+e-commerce review keywords as its main example. It connects task schemas,
+inference validation and SFT → DPO → GRPO rewards, so you can inspect both
+output structure and explicit source constraints.
 
-- **Schema 驱动**：用字段类型、枚举、长度和嵌套结构定义任务输出。
-- **训练与推理对齐**：SFT、DPO、GRPO 和在线推理共享结构化目标。
-- **语义合约校验**：在 JSON Schema 之外检查来源忠实、关键词长度、数量和重复项。
-- **可靠性处理**：支持重试、确定性修复、降级提取和失败状态区分。
-- **OpenAI 兼容接口**：可连接 vLLM 等 OpenAI-compatible 推理服务。
-- **可扩展任务**：关键词列表与固定字段分类任务使用同一套核心抽象。
+**[Try the contract playground](demo/README.md)** ·
+[Run model inference](#run-model-inference) ·
+[Evaluation](docs/evaluation.md) ·
+[Training recipes](docs/training.md)
 
-## 工作流程
+![Illustrative RLRefine flow: Chinese review, keyword JSON, structure and source checks. No live inference.](assets/readme-preview.svg)
 
-```text
-任务 Schema
-    │
-    ├── Prompt 与 JSON Schema
-    ├── SFT / DPO / GRPO 训练目标
-    └── 推理结果校验
-             │
-             ├── 合法结果
-             ├── 可确定性修复的结果
-             └── 失败或需人工复核的结果
+## See the contract
+
+For the source `包装很好，屏幕清晰。` (“The packaging is good and the screen is clear”):
+
+```python
+from core.target_contract import validate_keyword_payload
+
+source = "包装很好，屏幕清晰。"
+payload = {"keywords": [["原文描述屏幕", "屏幕", 0.94]]}
+assert validate_keyword_payload(payload, source) == (True, [])
+
+payload["keywords"][0][1] = "续航"  # Battery life is absent from this review.
+valid, errors = validate_keyword_payload(payload, source)
+assert not valid
+print(errors)  # ['keywords[0].keyword_not_in_source']
 ```
 
-RLRefine 明确区分三个层次：
+This is a hand-written illustration, not model output. The playground lets you
+edit examples and inspect errors without a GPU, API key or model download.
+Passing explicit rules does not guarantee relevant or complete extraction.
 
-1. 请求是否成功完成；
-2. 输出是否满足 JSON Schema；
-3. 输出是否满足任务语义，例如关键词必须来自原文。
+## What it provides
 
-这种区分可以避免把“JSON 能解析”误认为“业务结果可信”。
+| Capability | What you can use |
+|---|---|
+| Task schemas | Field types, enums, lengths, nested structures and JSON Schema export |
+| Keyword contracts | Tuple shape, numeric confidence, source substrings, length, count and duplicate checks |
+| Inference pipeline | OpenAI-compatible endpoints, retries, post-processing, fallback and explicit error states |
+| Post-training recipes | LoRA SFT, DPO and GRPO scripts with structure/source/reference-based rewards |
+| Evaluation | Exact-set Macro/Micro-F1, Schema validity and source-missing keyword rates |
 
-## 快速开始
+The keyword example is the main evaluated use case. A
+[support-ticket routing schema](examples/intent_routing/README.md) demonstrates
+a different output structure. English task effectiveness and broad domain
+generalization have not been established.
 
-基础安装要求 Python 3.10+，不需要 GPU、模型权重或外部 API：
+## Quickstart: no model required
+
+Python 3.10+:
 
 ```bash
 git clone https://github.com/xinyuran/RLRefine.git
 cd RLRefine
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 python -m scripts.contract_quickstart
 ```
 
-Windows PowerShell 使用：
-
-```powershell
-.venv\Scripts\Activate.ps1
-```
-
-quickstart 会在 CPU 上验证关键词抽取和客服工单路由两种 Schema：
+On Windows PowerShell, activate with `.venv\Scripts\Activate.ps1` instead.
+The quickstart checks two hand-written payloads and prints:
 
 ```json
 {
@@ -69,181 +81,72 @@ quickstart 会在 CPU 上验证关键词抽取和客服工单路由两种 Schema
 }
 ```
 
-运行公开测试：
+To run the browser playground locally, use
+`python -m http.server 7860 --bind 127.0.0.1 --directory demo` and open
+[localhost:7860](http://127.0.0.1:7860). It validates supplied output; it does not
+generate keywords.
 
-```bash
-python -m unittest discover -v tests
-```
+## Run model inference
 
-## 连接模型服务
-
-本项目三阶段后训练流程产出的公开合并模型可从 Hugging Face 获取：
-[`xinyuran/Qwen2.5-7B-RLRefine`](https://huggingface.co/xinyuran/Qwen2.5-7B-RLRefine)。
-该模型面向中文电商评论关键词抽取，可用于体验和复现下方的推理流程。
-
-该公开 `checkpoint-924` 模型对应的合成后训练数据也已发布：
-[`xinyuran/RLRefine-Dataset`](https://huggingface.co/datasets/xinyuran/RLRefine-Dataset)。
-数据集提供 `sft`、`dpo` 和 `grpo` 三种配置，并保留模型训练时的原始数据分布。
-
-安装 GPU 训练与服务依赖：
+The published [Qwen2.5-7B-RLRefine model](https://huggingface.co/xinyuran/Qwen2.5-7B-RLRefine)
+and [synthetic training dataset](https://huggingface.co/datasets/xinyuran/RLRefine-Dataset)
+are available on Hugging Face. On a compatible Linux/CUDA machine:
 
 ```bash
 python -m pip install -r requirements-training.txt
-```
-
-启动一个 OpenAI-compatible vLLM 服务：
-
-```bash
 bash scripts/run_vllm.sh 0 8001 xinyuran/Qwen2.5-7B-RLRefine
 ```
 
-复制并修改环境变量：
+In a second terminal, from the repository root:
 
 ```bash
 cp examples/keyword_extraction/.env.example examples/keyword_extraction/.env
 python examples/keyword_extraction/run.py
 ```
 
-核心推理入口是 `core.processor.RLRefineProcessor`。任务 Schema 示例位于
-`examples/keyword_extraction/schema.py` 和 `examples/intent_routing/schema.py`。
+The example configuration matches port **8001** and model
+**xinyuran/Qwen2.5-7B-RLRefine**. If using an existing service, set its endpoint,
+model name and credentials in that `.env` file. See the
+[usage guide](docs/usage.md) for Windows instructions and result handling.
 
-## 后训练配置
+## Reported results
 
-已验证流程以 Qwen2.5-7B-Instruct 为基座，通过 LoRA 依次完成监督微调、偏好优化和
-基于奖励的强化学习。
+Preserved historical results on **331 development samples**, under the experiment's
+fixed evaluation protocol:
 
-| 阶段 | 主要目标 | LoRA rank / alpha | 学习率 | Epoch | 关键参数 |
-|---|---|---:|---:|---:|---|
-| SFT | 学习输出格式与抽取任务 | 16 / 64 | `1e-5` | 5 | 最大长度 8192 |
-| DPO | 学习高低质量答案偏好 | 8 / 32 | `5e-7` | 1 | `beta=0.2` |
-| GRPO | 直接优化结构与抽取奖励 | 8 / 16 | `5e-7` | 1 | `beta=0.01`，每题采样 4 个回答 |
-
-主要训练环境：
-
-| 项目 | 配置 |
-|---|---|
-| GPU | 2 × NVIDIA H100 80GB |
-| 训练精度 | BF16 |
-| 训练框架 | ms-swift 3.11.2 |
-| 推理与生成 | vLLM 0.13.0 |
-| 并行与显存优化 | DeepSpeed ZeRO-2、vLLM colocate |
-| 基座模型 | Qwen2.5-7B-Instruct |
-
-训练脚本位于 `rl/`。默认路径仅为示例，使用者需要提供自己的模型与数据。
-
-## 直观效果对比
-
-下面是一条真实保存的代表性样例。基座模型与完成 SFT、DPO、GRPO 三阶段后训练的模型
-使用同一条评论、相同推理入口和相同后处理流程。该样例用于直观解释输出变化，不代替
-后续的整体评测指标。
-
-评论节选：
-
-> 终于收到我需要的宝贝了，东西很好，价美物廉，谢谢掌柜的！说实在，这是我购物以来
-> 让我最满意的一次购物。无论是掌柜的态度还是对物品，我都非常满意。掌柜态度很专业
-> 热情，有问必答，回复也很快……收到的时候包装完整，宝贝比我想象中的还要好！下次
-> 需要的时候我还会再来，到时候麻烦掌柜给个优惠。
-
-| 对比项 | Qwen2.5-7B-Instruct 基座模型 | SFT → DPO → GRPO 最终模型 |
-|---|---|---|
-| 统一后处理后的关键词 | `宝贝、态度、回复、价美物廉、购物、优惠` | `满意、好、宝贝、价美物廉、态度、回复、包装、优惠` |
-| 关键词数量 | 6 | 8 |
-| 关键信息覆盖 | 遗漏“满意”“好”“包装” | 覆盖情绪、商品、服务与包装信息 |
-| 原始置信度类型 | 字符串，例如 `"0.95"` | JSON 数字，例如 `0.95` |
-| 主要结构问题 | 重复“宝贝”，且置信度类型错误 | 输出可解析，重复项由统一后处理去除 |
-
-最终模型补回了强情绪词“满意”、评价词“好”和交付属性“包装”，同时不再保留较泛化的
-“购物”。这类单样本差异说明模型行为如何变化；是否形成稳定收益仍以完整评测集结果为
-准。
-
-<details>
-<summary><b>查看代表性原始 JSON 片段</b></summary>
-
-基座模型的原始输出包含字符串置信度和重复关键词：
-
-```json
-{
-  "keywords": [
-    ["宝贝收到后包装完整", "宝贝", "0.95"],
-    ["宝贝比我想象中的还要好", "宝贝", "0.95"],
-    ["掌柜态度很专业热情", "态度", "0.90"],
-    ["这是我购物以来让我最满意的一次购物", "购物", "0.75"]
-  ]
-}
-```
-
-完成 SFT、DPO、GRPO 后，模型能直接输出数字置信度，并提取此前遗漏的信息：
-
-```json
-{
-  "keywords": [
-    ["评论多次强调整体购物体验满意，'满意'为核心情绪词", "满意", 0.95],
-    ["'东西很好'中提取通用正面评价词'好'", "好", 0.90],
-    ["全文核心商品主体，多次提及'宝贝'", "宝贝", 0.88],
-    ["'包装完整'中提取交付属性关键词'包装'", "包装", 0.78]
-  ]
-}
-```
-
-为控制 README 长度，上述 JSON 只展示能够体现差异的原始条目；表格中的关键词列表来自
-两份完整输出经过相同后处理后的结果。
-
-</details>
-
-## 评测结果
-
-以下结果来自固定开发集上的离线评测。**宏平均 F1（Macro-F1）**表示对各样本 F1
-等权平均，减少长关键词列表对总分的主导；**Schema 合法率**表示输出满足规定字段、
-类型和结构的比例。
-
-| 模型阶段 | Macro-F1 | Schema 合法率 |
+| Stage | Macro-F1 | Schema validity |
 |---|---:|---:|
-| 基座模型 | 0.2490 | 0.4560 |
+| Base | 0.2490 | 0.4560 |
 | SFT | 0.4946 | 0.6737 |
 | DPO | 0.5437 | 0.7432 |
 | GRPO | 0.5759 | 0.7976 |
-| GRPO + 确定性合约修复 | 0.6932 | 1.0000 |
+| GRPO + offline deterministic repair | 0.6932 | 1.0000 |
 
-在另一个包含 496 条人工复核样本的隔离测试集上，GRPO 相对 DPO 的 Macro-F1、
-Micro-F1 和 Schema 合法率分别提升 `0.0541`、`0.0701` 和 `0.0786`。该测试集未参与
-训练或模型选择。
+On **496 held-out human-reviewed samples**, GRPO achieved Macro-F1 **0.3525**
+and Schema validity **0.5524**, compared with DPO's **0.2984** and **0.4738**.
+These absolute scores and the development/test distinction matter.
 
-为了验证 Schema 可扩展性，项目还使用 240 条人工复核的合成客服工单测试了固定字段
-路由任务。在其中 100 条隔离测试样本上，普通解码与严格 JSON Schema 解码得到相同的
-质量指标：
+**Repair is a separate stage. Schema validity is not task accuracy.** Historical
+deployment gates were not passed. The public release includes a scorer, but not
+the full frozen evaluation datasets and predictions. See
+[results, methods and reproducibility limits](docs/evaluation.md).
 
-| 指标 | 普通解码 | 严格 JSON Schema |
-|---|---:|---:|
-| Intent Macro-F1 | 0.8508 | 0.8508 |
-| 紧急程度准确率 | 0.6500 | 0.6500 |
-| Schema 合法率 | 1.0000 | 1.0000 |
-| 完整语义合约合法率 | 0.9900 | 0.9900 |
-| P50 延迟 | 0.175 s | 0.227 s |
-| 吞吐 | 497.2 tok/s | 368.2 tok/s |
-
-在这个任务上，严格约束解码没有提高质量，但 P50 延迟增加约 `29.7%`，吞吐下降约
-`26.0%`。约束解码是否启用，应依据实际错误分布和性能预算决定。
-
-## 项目结构
+## Explore and contribute
 
 ```text
-core/        Schema、配置、推理、预处理、后处理与语义合约
-prompts/     关键词任务 Prompt 构建
-rl/          SFT、DPO、GRPO、LoRA 合并与 Reward 实现
-examples/    关键词抽取、工单路由和少量数据格式示例
-scripts/     CPU quickstart 与 vLLM 启动脚本
-tests/       核心 Schema、推理与 Reward 测试
+core/        Schemas, inference, keyword contracts and post-processing
+rl/          SFT / DPO / GRPO recipes and rewards
+examples/    Keyword extraction, routing schema and data formats
+evaluation/  Exact-set keyword scorer
+demo/        Browser-only contract playground
+tests/       CPU checks and browser/Python contract parity
 ```
 
-## 适用边界
+Run `python -m unittest discover -v tests`. Node.js 22+ enables the browser
+validator parity check; without Node that check is skipped.
 
-- 当前质量结果主要来自中文电商评论关键词抽取。
-- 客服工单路由数据是小规模模板合成数据，不代表真实客服流量表现。
-- 确定性修复只能处理规则明确的错误，不能替代人工复核。
-- 离线指标和单机服务基准不等同于生产环境 SLO。
-- GitHub 仓库不直接包含模型权重、完整训练数据、内部评测报告或生产部署配置；公开合并
-  权重与对应合成后训练数据分别托管在上述 Hugging Face 模型页和数据集页面。
-
-## License
+Reproducible failure cases, new task examples and evaluation improvements are
+welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). If this project helps your work,
+a Star makes it easier for others to discover.
 
 [MIT License](LICENSE)
