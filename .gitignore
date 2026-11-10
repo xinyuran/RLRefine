@@ -112,6 +112,7 @@ tests/*
 !tests/test_reward_builder.py
 !tests/test_reward_builder_v2.py
 !tests/test_demo_contract.py
+!tests/test_live_demo.py
 !tests/test_keyword_evaluator.py
 
 prompts/prompt_template_4.py

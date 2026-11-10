@@ -19,6 +19,9 @@ An interactive, browser-only companion to [RLRefine](https://github.com/xinyuran
 Edit a Chinese review and JSON output to inspect structure, source matches,
 duplicate keywords and confidence types. No model runs in this demo.
 
+To generate keywords directly from a review, use the
+[live model demo](https://huggingface.co/spaces/xinyuran/RLRefine-Demo).
+
 The first three examples are hand-written teaching examples. The historical
 example is a partial base-model output preserved in the previous project README;
 it is not a live generation or an evaluation dataset.
@@ -34,12 +37,12 @@ then visit <http://127.0.0.1:7860>. There is no build step or JavaScript depende
 
 ## Host on Hugging Face
 
-Create a **Static** Space and upload this directory's files at the Space root,
+Create a **Static** Space and upload this directory's top-level files at the Space root,
 together with the repository's `LICENSE`. Keep the YAML metadata above in the
 Space's root README. No GPU, API secret or inference endpoint is required.
 
-Do not add service credentials to this static application. A future live model
-demo needs a separately secured backend and its own budget and availability check.
+Do not add service credentials to this static application. The separate
+[live model demo](live/README.md) runs inference on ZeroGPU.
 
 ## Scope
 

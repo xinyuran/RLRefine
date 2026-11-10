@@ -6,6 +6,7 @@
 
 | Goal | Entry point | Requires a model? |
 |---|---|---|
+| Enter a review and generate keywords online | [Live model demo](https://huggingface.co/spaces/xinyuran/RLRefine-Demo) · [Deployment details](../demo/live/README.md) | Hosted on shared ZeroGPU |
 | Explore JSON and source constraints | [Online playground](https://huggingface.co/spaces/xinyuran/RLRefine-Playground) · [Run locally](../demo/README.md) | No |
 | Check the Python installation | `python -m scripts.contract_quickstart` | No |
 | Extract keywords from reviews | `python examples/keyword_extraction/run.py` | Yes |

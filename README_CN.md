@@ -9,16 +9,23 @@
 [![MIT License](https://img.shields.io/badge/license-MIT-176b61)](LICENSE)
 [![Model](https://img.shields.io/badge/Hugging_Face-model-ffd21e)](https://huggingface.co/xinyuran/Qwen2.5-7B-RLRefine)
 [![Dataset](https://img.shields.io/badge/Hugging_Face-dataset-ffd21e)](https://huggingface.co/datasets/xinyuran/RLRefine-Dataset)
-[![Demo](https://img.shields.io/badge/demo-contract_playground-176b61)](https://huggingface.co/spaces/xinyuran/RLRefine-Playground)
+[![Demo](https://img.shields.io/badge/demo-live_model-176b61)](https://huggingface.co/spaces/xinyuran/RLRefine-Demo)
 
 RLRefine 是面向大语言模型结构化抽取的 Python 工具包，主要示例为中文电商评论关键词
 抽取。项目将任务 Schema、推理校验与 SFT → DPO → GRPO 后训练奖励连接起来，帮助使用者
 分别检查输出结构和明确的原文约束。
 
-**[体验合约校验台](https://huggingface.co/spaces/xinyuran/RLRefine-Playground)** · [运行模型](#运行模型抽取) ·
+**[体验真实模型 Demo](https://huggingface.co/spaces/xinyuran/RLRefine-Demo)** · [运行模型](#运行模型抽取) ·
 [评测与复现范围](docs/evaluation.md) · [训练配置](docs/training.md)
 
 ![RLRefine 示意流程：中文评论、关键词 JSON、结构与原文校验。此图为手写示例，不是实时推理。](assets/readme-preview.svg)
+
+## 直接在线体验
+
+在 [模型 Demo](https://huggingface.co/spaces/xinyuran/RLRefine-Demo) 中输入中文评论，点击
+**开始抽取**。公开模型自动生成关键词，页面展示原文高亮、校验结果与原始响应；
+无需手动填写 JSON 或准备本地 GPU。使用共享 ZeroGPU，有排队和每日额度限制，
+输入会发送到该 Space 进行推理。[部署说明](demo/live/README.md)。
 
 ## 先看一个例子
 
@@ -38,7 +45,8 @@ print(errors)  # ['keywords[0].keyword_not_in_source']
 ```
 
 这是手写教学示例，不是模型生成结果。替换关键词后 JSON 仍可解析，但原文约束失败。
-在线校验台可以编辑原文和 JSON、查看匹配高亮与错误；无需 GPU、API Key 或模型下载。
+[开发者校验台](https://huggingface.co/spaces/xinyuran/RLRefine-Playground) 可以编辑原文和 JSON、
+查看匹配高亮与错误；无需 GPU、API Key 或模型下载。
 通过这些明确规则，不代表关键词选择完整、相关或置信度已经校准。
 
 ## 核心能力

@@ -9,19 +9,28 @@ English · [简体中文](README_CN.md)
 [![MIT License](https://img.shields.io/badge/license-MIT-176b61)](LICENSE)
 [![Model](https://img.shields.io/badge/Hugging_Face-model-ffd21e)](https://huggingface.co/xinyuran/Qwen2.5-7B-RLRefine)
 [![Dataset](https://img.shields.io/badge/Hugging_Face-dataset-ffd21e)](https://huggingface.co/datasets/xinyuran/RLRefine-Dataset)
-[![Demo](https://img.shields.io/badge/demo-contract_playground-176b61)](https://huggingface.co/spaces/xinyuran/RLRefine-Playground)
+[![Demo](https://img.shields.io/badge/demo-live_model-176b61)](https://huggingface.co/spaces/xinyuran/RLRefine-Demo)
 
 RLRefine is a Python toolkit for structured LLM extraction, with Chinese
 e-commerce review keywords as its main example. It connects task schemas,
 inference validation and SFT → DPO → GRPO rewards, so you can inspect both
 output structure and explicit source constraints.
 
-**[Try the contract playground](https://huggingface.co/spaces/xinyuran/RLRefine-Playground)** ·
+**[Try the live model demo](https://huggingface.co/spaces/xinyuran/RLRefine-Demo)** ·
 [Run model inference](#run-model-inference) ·
 [Evaluation](docs/evaluation.md) ·
 [Training recipes](docs/training.md)
 
 ![Illustrative RLRefine flow: Chinese review, keyword JSON, structure and source checks. No live inference.](assets/readme-preview.svg)
+
+## Try it in your browser
+
+Enter a Chinese review in the [live demo](https://huggingface.co/spaces/xinyuran/RLRefine-Demo)
+and click **Extract keywords**. The published model generates the keywords;
+the page shows source highlights, validation results and the raw response.
+No JSON input or local GPU is needed. The demo uses shared ZeroGPU with queues
+and daily quotas; reviews are sent to the Space for inference. See the
+[deployment details](demo/live/README.md).
 
 ## See the contract
 
@@ -40,7 +49,8 @@ assert not valid
 print(errors)  # ['keywords[0].keyword_not_in_source']
 ```
 
-This is a hand-written illustration, not model output. The playground lets you
+This is a hand-written illustration, not model output. The
+[developer contract playground](https://huggingface.co/spaces/xinyuran/RLRefine-Playground) lets you
 edit examples and inspect errors without a GPU, API key or model download.
 Passing explicit rules does not guarantee relevant or complete extraction.
 
