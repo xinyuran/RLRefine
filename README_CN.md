@@ -18,7 +18,7 @@ RLRefine 是面向大语言模型结构化抽取的 Python 工具包，主要示
 **[体验真实模型 Demo](https://huggingface.co/spaces/xinyuran/RLRefine-Demo)** · [运行模型](#运行模型抽取) ·
 [评测与复现范围](docs/evaluation.md) · [训练配置](docs/training.md)
 
-![RLRefine 示意流程：中文评论、关键词 JSON、结构与原文校验。此图为手写示例，不是实时推理。](assets/readme-preview.svg)
+[![RLRefine 真实模型 Demo：输入中文评论，Qwen2.5-7B 自动生成关键词，查看原文匹配、合约校验与原始响应。图中为已保存的 Demo 运行结果。](assets/readme-preview.svg)](https://huggingface.co/spaces/xinyuran/RLRefine-Demo)
 
 ## 直接在线体验
 

@@ -21,7 +21,7 @@ output structure and explicit source constraints.
 [Evaluation](docs/evaluation.md) ·
 [Training recipes](docs/training.md)
 
-![Illustrative RLRefine flow: Chinese review, keyword JSON, structure and source checks. No live inference.](assets/readme-preview.svg)
+[![RLRefine live model demo: enter a Chinese review, generate keywords with Qwen2.5-7B, and inspect source matches, contract checks and the raw response. Saved demo run shown.](assets/readme-preview.svg)](https://huggingface.co/spaces/xinyuran/RLRefine-Demo)
 
 ## Try it in your browser
 
