@@ -1,63 +1,73 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="540" viewBox="0 0 1200 540" role="img" aria-labelledby="title desc">
-  <title id="title">RLRefine extraction flow</title>
-  <desc id="desc">An illustrative flow from a Chinese review to structured JSON and two validation checks: source grounding and schema validity.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="660" viewBox="0 0 1200 660" role="img" aria-labelledby="title desc">
+  <title id="title">RLRefine live model demo — from review to traceable keywords</title>
+  <desc id="desc">Enter a Chinese review, run Qwen2.5-7B-RLRefine, and inspect generated keywords, source matches, contract checks and the raw response. Eight keywords from a saved demo run are shown. Numeric score strings were normalized; passing checks does not guarantee extraction accuracy.</desc>
   <defs>
-    <filter id="cardShadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#12283D" flood-opacity="0.10"/>
-    </filter>
-    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4FB3A3"/>
-    </marker>
+    <linearGradient id="background" x2="1" y2="1"><stop stop-color="#F8FAF7"/><stop offset="1" stop-color="#EDF4F0"/></linearGradient>
+    <linearGradient id="model" x2="1" y2="1"><stop stop-color="#173D46"/><stop offset="1" stop-color="#102B38"/></linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dy="6" stdDeviation="9" flood-color="#153C3B" flood-opacity="0.07"/></filter>
   </defs>
-  <rect width="1200" height="540" rx="28" fill="#FBF8F1"/>
-  <text x="56" y="66" fill="#12283D" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="30" font-weight="700">One contract, from prompt to checked output</text>
-  <text x="56" y="98" fill="#657985" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="16">RLRefine keeps syntax, source faithfulness, and task semantics visible at the same boundary.</text>
+  <g font-family="Segoe UI, Arial, Noto Sans SC, Microsoft YaHei, sans-serif">
+    <rect width="1200" height="660" rx="28" fill="url(#background)"/>
+    <path d="M1000 0h200v155C1100 145 1035 95 1000 0" fill="#DCEDE5"/>
+    <rect x="48" y="36" width="38" height="38" rx="11" fill="#173D46"/>
+    <path d="M59 47h9a7 7 0 0 1 0 14h-9m9 0 7 7" fill="none" stroke="#A3E1C8" stroke-width="3" stroke-linecap="round"/>
+    <text x="99" y="64" fill="#173D46" font-size="28" font-weight="700">RLRefine</text>
+    <rect x="903" y="39" width="249" height="34" rx="17" fill="#D5EBDD"/>
+    <circle cx="923" cy="56" r="5" fill="#237A56"/>
+    <text x="938" y="62" fill="#205D46" font-size="14" font-weight="700" letter-spacing="1">LIVE MODEL DEMO</text>
+    <text x="48" y="128" fill="#173D46" font-size="43" font-weight="700" letter-spacing="-1">From review to traceable keywords.</text>
+    <text x="50" y="164" fill="#526D70" font-size="20">Real model inference. Source highlights. Transparent validation.</text>
 
-  <g transform="translate(56 144)" filter="url(#cardShadow)">
-    <rect width="302" height="290" rx="22" fill="#FFFFFF"/>
-    <rect width="302" height="8" rx="4" fill="#E1B66D"/>
-    <text x="28" y="52" fill="#8D6A35" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" letter-spacing="1.5">01 · INPUT</text>
-    <text x="28" y="96" fill="#12283D" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="21" font-weight="700">原文评论</text>
-    <rect x="28" y="120" width="246" height="82" rx="14" fill="#F7F2E8"/>
-    <text x="45" y="157" fill="#244354" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="21">包装很好，</text>
-    <text x="45" y="187" fill="#244354" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="21">屏幕清晰。</text>
-    <text x="28" y="244" fill="#657985" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="15">用户提供一段可追溯的来源文本</text>
+    <g transform="translate(48 202)" filter="url(#shadow)">
+      <rect width="330" height="326" rx="20" fill="#FFFFFF" stroke="#DDE7E1"/>
+      <text x="26" y="38" fill="#68827C" font-size="13" font-weight="700" letter-spacing="1.5">01 / ENTER A REVIEW</text>
+      <text x="26" y="80" fill="#173D46" font-size="25" font-weight="700">Start with your text</text>
+      <rect x="26" y="104" width="278" height="149" rx="13" fill="#F1F5EF"/>
+      <g fill="#284B4D" font-size="21">
+        <text x="44" y="138">这款手机屏幕很大，</text>
+        <text x="44" y="170">电池也很耐用，但是</text>
+        <text x="44" y="202">拍照效果一般，</text>
+        <text x="44" y="234">尤其是夜景模式。</text>
+      </g>
+      <text x="26" y="292" fill="#526D70" font-size="16">Chinese reviews · up to 512 characters</text>
+    </g>
+    <path d="M385 365h18m-6-6 6 6-6 6" fill="none" stroke="#5B9682" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <g transform="translate(410 202)">
+      <rect width="350" height="326" rx="20" fill="url(#model)"/>
+      <text x="26" y="38" fill="#9CD9C1" font-size="13" font-weight="700" letter-spacing="1.5">02 / RUN THE MODEL</text>
+      <text x="26" y="80" fill="#FFFFFF" font-size="25" font-weight="700">Qwen2.5 · 7B</text>
+      <text x="26" y="110" fill="#C0D4D4" font-size="17">RLRefine post-trained checkpoint</text>
+      <rect x="26" y="137" width="298" height="51" rx="12" fill="#254D55" stroke="#3B6467"/>
+      <text x="175" y="170" text-anchor="middle" fill="#C4EAD9" font-size="20" font-weight="600">SFT → DPO → GRPO</text>
+      <path d="M164 207h22m-17 7h12m-8 7h4" stroke="#91CCB5" stroke-width="2" stroke-linecap="round"/>
+      <rect x="26" y="238" width="298" height="44" rx="11" fill="#B9E6CD"/>
+      <text x="175" y="266" text-anchor="middle" fill="#173D46" font-size="18" font-weight="700">Generate keywords →</text>
+      <text x="175" y="308" text-anchor="middle" fill="#B4CECB" font-size="14">Hugging Face ZeroGPU · no local GPU</text>
+    </g>
+    <path d="M767 365h18m-6-6 6 6-6 6" fill="none" stroke="#5B9682" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <g transform="translate(792 202)" filter="url(#shadow)">
+      <rect width="360" height="326" rx="20" fill="#FFFFFF" stroke="#DDE7E1"/>
+      <text x="26" y="38" fill="#68827C" font-size="13" font-weight="700" letter-spacing="1.5">03 / INSPECT THE RESULT</text>
+      <text x="26" y="80" fill="#173D46" font-size="25" font-weight="700">8 generated keywords</text>
+      <g fill="#EAF3EB">
+        <rect x="26" y="105" width="72" height="36" rx="9"/><rect x="108" y="105" width="72" height="36" rx="9"/><rect x="190" y="105" width="126" height="36" rx="9"/>
+        <rect x="26" y="151" width="52" height="36" rx="9"/><rect x="88" y="151" width="72" height="36" rx="9"/><rect x="170" y="151" width="72" height="36" rx="9"/><rect x="252" y="151" width="72" height="36" rx="9"/>
+        <rect x="26" y="197" width="126" height="36" rx="9"/>
+      </g>
+      <g fill="#285B47" font-size="19" text-anchor="middle">
+        <text x="62" y="130">屏幕</text><text x="144" y="130">电池</text><text x="253" y="130">拍照效果</text>
+        <text x="52" y="176">大</text><text x="124" y="176">耐用</text><text x="206" y="176">一般</text><text x="288" y="176">手机</text>
+        <text x="89" y="222">夜景模式</text>
+      </g>
+      <path d="m29 261 5 5 9-11" fill="none" stroke="#398267" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="53" y="266" fill="#285B47" font-size="17" font-weight="600">8 / 8 matched in source</text>
+      <text x="26" y="296" fill="#526D70" font-size="16">Contract checks + JSON + raw response</text>
+    </g>
+    <text x="48" y="568" fill="#526D70" font-size="15">Saved demo run · Score strings normalized; raw response preserved.</text>
+    <text x="48" y="594" fill="#526D70" font-size="15">Passing checks does not guarantee extraction accuracy.</text>
+    <rect x="889" y="551" width="263" height="48" rx="13" fill="#173D46"/>
+    <text x="1020" y="582" text-anchor="middle" fill="#FFFFFF" font-size="19" font-weight="600">Try the live demo ↗</text>
+    <text x="48" y="633" fill="#68827C" font-size="13" letter-spacing="1.1">OPEN SOURCE · MODEL + DATA + TRAINING RECIPES</text>
+    <text x="1152" y="633" text-anchor="end" fill="#68827C" font-size="13">Shared ZeroGPU · queues and daily quotas apply</text>
   </g>
-
-  <path d="M376 289h62" stroke="#4FB3A3" stroke-width="4" marker-end="url(#arrow)"/>
-  <text x="376" y="267" fill="#4B8178" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="14" font-weight="700">schema + prompt</text>
-
-  <g transform="translate(448 144)" filter="url(#cardShadow)">
-    <rect width="340" height="290" rx="22" fill="#12283D"/>
-    <rect width="340" height="8" rx="4" fill="#8BD3C7"/>
-    <text x="28" y="52" fill="#8BD3C7" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" letter-spacing="1.5">02 · STRUCTURED OUTPUT</text>
-    <text x="28" y="96" fill="#FBF8F1" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="21" font-weight="700">JSON 关键词</text>
-    <text x="28" y="137" fill="#A6E1D6" font-family="DejaVu Sans Mono, Consolas, monospace" font-size="17">{ "keywords": [</text>
-    <text x="45" y="171" fill="#FBF8F1" font-family="DejaVu Sans Mono, Consolas, monospace" font-size="16">["包装", 0.96],</text>
-    <text x="45" y="202" fill="#FBF8F1" font-family="DejaVu Sans Mono, Consolas, monospace" font-size="16">["屏幕", 0.94],</text>
-    <text x="45" y="233" fill="#FBF8F1" font-family="DejaVu Sans Mono, Consolas, monospace" font-size="16">["清晰", 0.91] ] }</text>
-    <text x="28" y="267" fill="#B6C8CE" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="14">类型、数量、长度可被统一约束</text>
-  </g>
-
-  <path d="M806 289h62" stroke="#4FB3A3" stroke-width="4" marker-end="url(#arrow)"/>
-  <text x="804" y="267" fill="#4B8178" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="14" font-weight="700">validate + repair</text>
-
-  <g transform="translate(878 144)" filter="url(#cardShadow)">
-    <rect width="266" height="290" rx="22" fill="#FFFFFF"/>
-    <rect width="266" height="8" rx="4" fill="#4FB3A3"/>
-    <text x="28" y="52" fill="#287E72" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" letter-spacing="1.5">03 · CONTRACT CHECKS</text>
-    <text x="28" y="96" fill="#12283D" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="21" font-weight="700">可解释状态</text>
-    <rect x="28" y="124" width="210" height="48" rx="14" fill="#E8F5F1"/>
-    <circle cx="52" cy="148" r="10" fill="#4FB3A3"/>
-    <path d="M47 148l4 4 7-8" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-    <text x="72" y="154" fill="#17665D" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">source grounded</text>
-    <rect x="28" y="188" width="210" height="48" rx="14" fill="#F3EDE2"/>
-    <circle cx="52" cy="212" r="10" fill="#C69245"/>
-    <path d="M47 212l4 4 7-8" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-    <text x="72" y="218" fill="#725E3E" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">schema valid</text>
-    <text x="28" y="272" fill="#657985" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="14">失败可重试、修复或人工复核</text>
-  </g>
-
-  <text x="56" y="490" fill="#657985" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="14">Illustrative example · no live inference</text>
-  <text x="1144" y="490" text-anchor="end" fill="#657985" font-family="Noto Sans SC, Segoe UI, Arial, sans-serif" font-size="14">SFT → DPO → GRPO</text>
 </svg>
